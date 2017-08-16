@@ -33,11 +33,11 @@ func main() {
 	flags.IntVar(&conf.Verbosity, "verbosity", 3, "log verbosity: 1 (lowest)--5 (highest)")
 	flags.IntVar(&conf.Threads, "threads", 5, "how many processing threads to use")
 	// MaxMind GeoIP2
-	flags.BoolVar(&conf.GeoIP2City, "maxmind-geoip2", false, "geolocate")
-	flags.StringVar(&conf.GeoIP2DatabasePath, "maxmind-geoip2-database", "", "path to MaxMind GeoIP2 database")
-	flags.StringVar(&conf.GeoIP2Mode, "maxmind-mode", "mmap", "how to open database: mmap or memory")
-	flags.StringVar(&conf.GeoIP2Language, "maxmind-language", "en", "how to open database: mmap or memory")
-	flags.StringVar(&conf.GeoIP2Fields, "maxmind-fields", "*", "city, continent, country, location, postal, registered_country, subdivisions, traits")
+	flags.BoolVar(&conf.GeoIP2City, "geoip2", false, "geolocate")
+	flags.StringVar(&conf.GeoIP2DatabasePath, "geoip2-database", "", "path to MaxMind GeoIP2 database")
+	flags.StringVar(&conf.GeoIP2Mode, "geoip2-mode", "mmap", "how to open database: mmap or memory")
+	flags.StringVar(&conf.GeoIP2Language, "geoip2-language", "en", "how to open database: mmap or memory")
+	flags.StringVar(&conf.GeoIP2Fields, "geoip2-fields", "*", "city, continent, country, location, postal, registered_country, subdivisions, traits")
 	// Routing Table AS Data
 	flags.BoolVar(&conf.Routing, "routing", false, "add routing data")
 	flags.StringVar(&conf.RoutingTablePath, "routing-table-path", "", "geolocate")
