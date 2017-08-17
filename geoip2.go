@@ -159,17 +159,17 @@ func GeoIP2Open(conf *GeoIP2Conf) *geoip2.Reader {
 	if conf.Mode == "memory" {
 		bytes, err := ioutil.ReadFile(conf.Path)
 		if err != nil {
-			log.Fatal("unable to open maxmind geoIP2 database: ", err)
+			log.Fatal("unable to open maxmind geoIP2 database (memory): ", err)
 		}
 		db, err := geoip2.FromBytes(bytes)
 		if err != nil {
-			log.Fatal("unable to open maxmind geoIP2 database: ", err)
+			log.Fatal("unable to parse maxmind geoIP2 database: ", err)
 		}
 		return db
 	} else if conf.Mode == "mmap" {
 		db, err := geoip2.Open(conf.Path)
 		if err != nil {
-			log.Fatal("unable to open maxmind geoIP2 database: ", err)
+			log.Fatal("unable to load maxmind geoIP2 database: ", err)
 		}
 		return db
 	}

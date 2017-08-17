@@ -19,35 +19,41 @@ import (
 	"os"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/zmap/zannotate"
 )
 
 func main() {
 
-	var conf GlobalConf
+	var conf zannotate.GlobalConf
 	flags := flag.NewFlagSet("flags", flag.ExitOnError)
 	flags.StringVar(&conf.InputFilePath, "input-file", "-", "ip addresses to read")
 	flags.StringVar(&conf.InputFileType, "input-file-type", "ips", "ips, csv, json")
 	flags.StringVar(&conf.OutputFilePath, "output-file", "-", "where should JSON output be saved")
-	flags.StringVar(&conf.MetadataFilePath, "metadata-file", "", "where should JSON metadata be saved")
+	flags.StringVar(&conf.MetadataFilePath, "metadata-file", "",
+		"where should JSON metadata be saved")
 	flags.StringVar(&conf.LogFilePath, "log-file", "", "where should JSON logs be saved")
 	flags.IntVar(&conf.Verbosity, "verbosity", 3, "log verbosity: 1 (lowest)--5 (highest)")
 	flags.IntVar(&conf.Threads, "threads", 5, "how many processing threads to use")
 	// MaxMind GeoIP2
-	flags.BoolVar(&conf.GeoIP2City, "geoip2", false, "geolocate")
-	flags.StringVar(&conf.GeoIP2DatabasePath, "geoip2-database", "", "path to MaxMind GeoIP2 database")
-	flags.StringVar(&conf.GeoIP2Mode, "geoip2-mode", "mmap", "how to open database: mmap or memory")
-	flags.StringVar(&conf.GeoIP2Language, "geoip2-language", "en", "how to open database: mmap or memory")
-	flags.StringVar(&conf.GeoIP2Fields, "geoip2-fields", "*", "city, continent, country, location, postal, registered_country, subdivisions, traits")
+	flags.BoolVar(&conf.GeoIP2, "geoip2", false, "geolocate")
+	flags.StringVar(&conf.GeoIP2Conf.Path, "geoip2-database", "",
+		"path to MaxMind GeoIP2 database")
+	flags.StringVar(&conf.GeoIP2Conf.Mode, "geoip2-mode", "mmap",
+		"how to open database: mmap or memory")
+	flags.StringVar(&conf.GeoIP2Conf.Language, "geoip2-language", "en",
+		"how to open database: mmap or memory")
+	flags.StringVar(&conf.GeoIP2Conf.RawInclude, "geoip2-fields", "*",
+		"city, continent, country, location, postal, registered_country, subdivisions, traits")
 	// Routing Table AS Data
-	flags.BoolVar(&conf.Routing, "routing", false, "add routing data")
-	flags.StringVar(&conf.RoutingTablePath, "routing-table-path", "", "geolocate")
-	flags.StringVar(&conf.ASData, "as-data", "", "geolocate")
+	//flags.BoolVar(&conf.Routing, "routing", false, "add routing data")
+	//flags.StringVar(&conf.RoutingTablePath, "routing-table-path", "", "geolocate")
+	//flags.StringVar(&conf.ASData, "as-data", "", "geolocate")
 
-	flags.Parse(os.Args[2:])
+	flags.Parse(os.Args[1:])
 	if conf.LogFilePath != "" {
-		f, err := os.OpenFile(gc.LogFilePath, os.O_WRONLY|os.O_CREATE, 0666)
+		f, err := os.OpenFile(conf.LogFilePath, os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
-			log.Fatalf("Unable to open log file (%s): %s", gc.LogFilePath, err.Error())
+			log.Fatalf("Unable to open log file (%s): %s", conf.LogFilePath, err.Error())
 		}
 		log.SetOutput(f)
 	}
@@ -66,5 +72,15 @@ func main() {
 	default:
 		log.Fatal("Unknown verbosity level specified. Must be between 1 (lowest)--5 (highest)")
 	}
-
+	// Check that we're doing anything
+	if conf.GeoIP2 != true {
+		log.Fatal("No action requested")
+	}
+	// Check GeoIP2 sanity
+	if conf.GeoIP2 == true {
+		if conf.GeoIP2Conf.Path == "" {
+			log.Fatal("no GeoIP2 database provided")
+		}
+	}
+	zannotate.DoAnnotation(&conf)
 }

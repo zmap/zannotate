@@ -16,11 +16,12 @@ package zannotate
 
 import (
 	"bufio"
-	"log"
+	"encoding/json"
 	"net"
 	"os"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/oschwald/geoip2-golang"
 )
 
@@ -42,9 +43,11 @@ type Result struct {
 	geoip2 GeoIP2Output `json:"geoip2,omitempty"`
 }
 
-func reader(path string, in chan<- string) {
+func AnnotateRead(path string, in chan<- string) {
+	log.Debug("read thread started")
 	var f *os.File
 	if path == "" || path == "-" {
+		log.Debug("reading input from stdin")
 		f = os.Stdin
 	} else {
 		var err error
@@ -52,6 +55,7 @@ func reader(path string, in chan<- string) {
 		if err != nil {
 			log.Fatal("unable to open input file:", err.Error())
 		}
+		log.Debug("reading input from ", path)
 	}
 	s := bufio.NewScanner(f)
 	for s.Scan() {
@@ -60,9 +64,33 @@ func reader(path string, in chan<- string) {
 	if err := s.Err(); err != nil {
 		log.Fatal("input unable to read file", err)
 	}
+	close(in)
+	log.Debug("read thread finished")
 }
 
-func AnnotateWorker(conf *GlobalConf, in <-chan string, out chan<- string, wg *sync.WaitGroup) {
+func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
+	log.Debug("write thread started")
+	var f *os.File
+	if path == "" || path == "-" {
+		f = os.Stdout
+	} else {
+		var err error
+		f, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil {
+			log.Fatal("unable to open output file:", err.Error())
+		}
+		defer f.Close()
+	}
+	for n := range out {
+		f.WriteString(n + "\n")
+	}
+	wg.Done()
+	log.Debug("write thread finished")
+}
+
+func AnnotateWorker(conf *GlobalConf, in <-chan string, out chan<- string,
+	wg *sync.WaitGroup, i int) {
+	log.Debug("annotate worker ", i, " started")
 	// not entirely sure if this geolocation library is thread safe
 	// so for now we're just going to open the MaxMind database in every thraed
 	var geoIP2db *geoip2.Reader
@@ -75,27 +103,42 @@ func AnnotateWorker(conf *GlobalConf, in <-chan string, out chan<- string, wg *s
 		if ip == nil {
 			log.Fatal("invalid IP received: ", line)
 		}
-		var out Result
+		var res Result
 		if conf.GeoIP2 == true {
 			record, err := geoIP2db.City(ip)
 			if err != nil {
 				log.Fatal(err)
 			}
-			out.geoip2 = GeoIP2FillStruct(record, &conf.GeoIP2Conf)
+			res.geoip2 = GeoIP2FillStruct(record, &conf.GeoIP2Conf)
 		}
+		jsonRes, err := json.Marshal(res)
+		if err != nil {
+			log.Fatal("Unable to marshal JSON result", err)
+		}
+		out <- string(jsonRes)
 	}
 	wg.Done()
+	log.Debug("annotate worker ", i, " finished")
 }
 
-func DoAnnotation(conf GlobalConf) {
+func DoAnnotation(conf *GlobalConf) {
 	outChan := make(chan string)
 	inChan := make(chan string)
-	var lookupWG sync.WaitGroup
-	lookupWG.Add(conf.Threads)
+
+	var outputWG sync.WaitGroup
+	outputWG.Add(1)
+
+	go AnnotateRead(conf.InputFilePath, inChan)
+	go AnnotateWrite(conf.InputFilePath, outChan, &outputWG)
+
+	var annotateWG sync.WaitGroup
+	annotateWG.Add(conf.Threads)
 	//startTime := time.Now().Format(time.RFC3339)
 	for i := 0; i < conf.Threads; i++ {
-		go AnnotateWorker(&conf, inChan, outChan, &lookupWG)
+		go AnnotateWorker(conf, inChan, outChan, &annotateWG, i)
 	}
-	lookupWG.Wait()
+	annotateWG.Wait()
+	close(outChan)
 
+	outputWG.Wait()
 }
