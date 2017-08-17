@@ -81,6 +81,7 @@ func main() {
 		if conf.GeoIP2Conf.Path == "" {
 			log.Fatal("no GeoIP2 database provided")
 		}
+		zannotate.GeoIP2ParseRawIncludeString(&conf.GeoIP2Conf)
 	}
 	zannotate.DoAnnotation(&conf)
 }

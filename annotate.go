@@ -39,8 +39,8 @@ type GlobalConf struct {
 }
 
 type Result struct {
-	ip     string       `json:"ip,omitempty"`
-	geoip2 GeoIP2Output `json:"geoip2,omitempty"`
+	Ip     string        `json:"ip"`
+	GeoIP2 *GeoIP2Output `json:"geoip2"`
 }
 
 func AnnotateRead(path string, in chan<- string) {
@@ -104,17 +104,21 @@ func AnnotateWorker(conf *GlobalConf, in <-chan string, out chan<- string,
 			log.Fatal("invalid IP received: ", line)
 		}
 		var res Result
+		res.Ip = ip.String()
 		if conf.GeoIP2 == true {
 			record, err := geoIP2db.City(ip)
 			if err != nil {
 				log.Fatal(err)
 			}
-			res.geoip2 = GeoIP2FillStruct(record, &conf.GeoIP2Conf)
+			res.GeoIP2 = GeoIP2FillStruct(record, &conf.GeoIP2Conf)
 		}
+		//fmt.Printf("%+v\n", res)
 		jsonRes, err := json.Marshal(res)
 		if err != nil {
 			log.Fatal("Unable to marshal JSON result", err)
 		}
+		log.Warn(res)
+		log.Warn(string(jsonRes))
 		out <- string(jsonRes)
 	}
 	wg.Done()
@@ -128,17 +132,17 @@ func DoAnnotation(conf *GlobalConf) {
 	var outputWG sync.WaitGroup
 	outputWG.Add(1)
 
+	//startTime := time.Now().Format(time.RFC3339)
 	go AnnotateRead(conf.InputFilePath, inChan)
 	go AnnotateWrite(conf.InputFilePath, outChan, &outputWG)
 
 	var annotateWG sync.WaitGroup
 	annotateWG.Add(conf.Threads)
-	//startTime := time.Now().Format(time.RFC3339)
 	for i := 0; i < conf.Threads; i++ {
 		go AnnotateWorker(conf, inChan, outChan, &annotateWG, i)
 	}
 	annotateWG.Wait()
 	close(outChan)
-
 	outputWG.Wait()
+	//endTime := time.Now().Format(time.RFC3339)
 }

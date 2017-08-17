@@ -16,9 +16,9 @@ package zannotate
 
 import (
 	"io/ioutil"
-	"log"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/oschwald/geoip2-golang"
 )
 
@@ -31,6 +31,7 @@ type GeoIP2Conf struct {
 	IncludeCity               bool
 	IncludeCountry            bool
 	IncludeContinent          bool
+	IncludePostal             bool
 	IncludeLatLong            bool
 	IncludeTraits             bool
 	IncludeSubdivisions       bool
@@ -81,41 +82,47 @@ type GeoIP2Output struct {
 
 func GeoIP2ParseRawIncludeString(conf *GeoIP2Conf) {
 	if conf.RawInclude == "*" {
+		log.Debug("will include all geoip fields")
 		conf.IncludeCity = true
 		conf.IncludeCountry = true
 		conf.IncludeContinent = true
+		conf.IncludePostal = true
 		conf.IncludeLatLong = true
 		conf.IncludeTraits = true
 		conf.IncludeSubdivisions = true
 		conf.IncludeRegisteredCountry = true
 		conf.IncludeRepresentedCountry = true
-	}
-	for _, s := range strings.Split(conf.RawInclude, ",") {
-		ps := strings.Trim(s, " ")
-		switch ps {
-		case "city":
-			conf.IncludeCity = true
-		case "country":
-			conf.IncludeCountry = true
-		case "continent":
-			conf.IncludeContinent = true
-		case "latlong":
-			conf.IncludeLatLong = true
-		case "traits":
-			conf.IncludeTraits = true
-		case "subdivisions":
-			conf.IncludeSubdivisions = true
-		case "registered_country":
-			conf.IncludeRegisteredCountry = true
-		case "represented_country":
-			conf.IncludeRepresentedCountry = true
-		default:
-			log.Fatal("Invalid GeoIP2 field: ", ps)
+	} else {
+		log.Debug("will include GeoIP fields: ", conf.RawInclude)
+		for _, s := range strings.Split(conf.RawInclude, ",") {
+			ps := strings.Trim(s, " ")
+			switch ps {
+			case "city":
+				conf.IncludeCity = true
+			case "country":
+				conf.IncludeCountry = true
+			case "continent":
+				conf.IncludeContinent = true
+			case "latlong":
+				conf.IncludeLatLong = true
+			case "postal":
+				conf.IncludePostal = true
+			case "traits":
+				conf.IncludeTraits = true
+			case "subdivisions":
+				conf.IncludeSubdivisions = true
+			case "registered_country":
+				conf.IncludeRegisteredCountry = true
+			case "represented_country":
+				conf.IncludeRepresentedCountry = true
+			default:
+				log.Fatal("Invalid GeoIP2 field: ", ps)
+			}
 		}
 	}
 }
 
-func GeoIP2FillStruct(in *geoip2.City, conf *GeoIP2Conf) GeoIP2Output {
+func GeoIP2FillStruct(in *geoip2.City, conf *GeoIP2Conf) *GeoIP2Output {
 	var out GeoIP2Output
 	if conf.IncludeCity == true {
 		out.City.Name = in.City.Names[conf.Language]
@@ -138,6 +145,9 @@ func GeoIP2FillStruct(in *geoip2.City, conf *GeoIP2Conf) GeoIP2Output {
 		out.LatLong.MetroCode = in.Location.MetroCode
 		out.LatLong.TimeZone = in.Location.TimeZone
 	}
+	if conf.IncludePostal == true {
+		out.Postal.Code = in.Postal.Code
+	}
 	if conf.IncludeTraits == true {
 		out.Traits.IsAnonymousProxy = in.Traits.IsAnonymousProxy
 		out.Traits.IsSatelliteProvider = in.Traits.IsSatelliteProvider
@@ -152,7 +162,7 @@ func GeoIP2FillStruct(in *geoip2.City, conf *GeoIP2Conf) GeoIP2Output {
 		out.RepresentedCountry.GeoNameId = in.RepresentedCountry.GeoNameID
 		out.RepresentedCountry.Code = in.RepresentedCountry.IsoCode
 	}
-	return out
+	return &out
 }
 
 func GeoIP2Open(conf *GeoIP2Conf) *geoip2.Reader {
