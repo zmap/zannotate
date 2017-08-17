@@ -98,6 +98,7 @@ func AnnotateWorker(conf *GlobalConf, in <-chan string, out chan<- string,
 		geoIP2db = GeoIP2Open(&conf.GeoIP2Conf)
 		defer geoIP2db.Close()
 	}
+	log.Debug("annotate worker ", i, " initialization finished")
 	for line := range in {
 		ip := net.ParseIP(line)
 		if ip == nil {
@@ -117,8 +118,6 @@ func AnnotateWorker(conf *GlobalConf, in <-chan string, out chan<- string,
 		if err != nil {
 			log.Fatal("Unable to marshal JSON result", err)
 		}
-		log.Warn(res)
-		log.Warn(string(jsonRes))
 		out <- string(jsonRes)
 	}
 	wg.Done()
