@@ -39,45 +39,43 @@ type GeoIP2Conf struct {
 	IncludeRegisteredCountry  bool
 }
 
+type GeoIP2City struct {
+	Name      string `json:"name"`
+	GeoNameId uint   `json:"id"`
+}
+
+type GeoIP2Country struct {
+	Name      string `json:"name"`
+	Code      string `json:"code"`
+	GeoNameId uint   `json:"id"`
+}
+
+type GeoIP2Postal struct {
+	Code string `json:"code"`
+}
+
+type GeoIP2LatLong struct {
+	AccuracyRadius uint16  `json:"accuracy_radius"`
+	Latitude       float64 `json:"latitude"`
+	Longitude      float64 `json:"longitude"`
+	MetroCode      uint    `json:"metro_code"`
+	TimeZone       string  `json:"time_zone"`
+}
+
+type GeoIP2Traits struct {
+	IsAnonymousProxy    bool `json:"is_anonymous_proxy"`
+	IsSatelliteProvider bool `json:"is_satellite_provider"`
+}
+
 type GeoIP2Output struct {
-	City struct {
-		Name      string `json:"name"`
-		GeoNameId uint   `json:"id"`
-	} `json:"city,omitempty"`
-	Country struct {
-		Name      string `json:"name"`
-		Code      string `json:"code"`
-		GeoNameId uint   `json:"id"`
-	} `json:"country,omitempty"`
-	Continent struct {
-		Name      string `json:"name"`
-		Code      string `json:"code"`
-		GeoNameId uint   `json:"id"`
-	} `json:"continent,omitempty"`
-	Postal struct {
-		Code string `json:"code"`
-	} `json:"postal,omitempty"`
-	LatLong struct {
-		AccuracyRadius uint16  `json:"accuracy_radius"`
-		Latitude       float64 `json:"latitude"`
-		Longitude      float64 `json:"longitude"`
-		MetroCode      uint    `json:"metro_code"`
-		TimeZone       string  `json:"time_zone"`
-	} `json:"latlong,omitempty"`
-	RepresentedCountry struct {
-		Name      string `json:"name"`
-		Code      string `json:"code"`
-		GeoNameId uint   `json:"id"`
-	} `json:"represented_country,omitempty"`
-	RegisteredCountry struct {
-		Name      string `json:"name"`
-		Code      string `json:"code"`
-		GeoNameId uint   `json:"id"`
-	} `json:"represented_country,omitempty"`
-	Traits struct {
-		IsAnonymousProxy    bool `json:"is_anonymous_proxy"`
-		IsSatelliteProvider bool `json:"is_satellite_provider"`
-	} `json:"metadata,omitempty"`
+	City               *GeoIP2City    `json:"city,omitempty"`
+	Country            *GeoIP2Country `json:"country,omitempty"`
+	Continent          *GeoIP2Country `json:"continent,omitempty"`
+	Postal             *GeoIP2Postal  `json:"postal,omitempty"`
+	LatLong            *GeoIP2LatLong `json:"latlong,omitempty"`
+	RepresentedCountry *GeoIP2Country `json:"represented_country,omitempty"`
+	RegisteredCountry  *GeoIP2Country `json:"represented_country,omitempty"`
+	Traits             *GeoIP2Traits  `json:"metadata,omitempty"`
 }
 
 func GeoIP2ParseRawIncludeString(conf *GeoIP2Conf) {
@@ -125,20 +123,28 @@ func GeoIP2ParseRawIncludeString(conf *GeoIP2Conf) {
 func GeoIP2FillStruct(in *geoip2.City, conf *GeoIP2Conf) *GeoIP2Output {
 	var out GeoIP2Output
 	if conf.IncludeCity == true {
+		var city GeoIP2City
+		out.City = &city
 		out.City.Name = in.City.Names[conf.Language]
 		out.City.GeoNameId = in.City.GeoNameID
 	}
 	if conf.IncludeCountry == true {
+		var country GeoIP2Country
+		out.Country = &country
 		out.Country.Name = in.Country.Names[conf.Language]
 		out.Country.GeoNameId = in.Country.GeoNameID
 		out.Country.Code = in.Country.IsoCode
 	}
 	if conf.IncludeContinent == true {
+		var country GeoIP2Country
+		out.Continent = &country
 		out.Continent.Name = in.Continent.Names[conf.Language]
 		out.Continent.GeoNameId = in.Continent.GeoNameID
 		out.Continent.Code = in.Continent.Code
 	}
 	if conf.IncludeLatLong == true {
+		var latlong GeoIP2LatLong
+		out.LatLong = &latlong
 		out.LatLong.AccuracyRadius = in.Location.AccuracyRadius
 		out.LatLong.Latitude = in.Location.Latitude
 		out.LatLong.Longitude = in.Location.Longitude
@@ -146,18 +152,26 @@ func GeoIP2FillStruct(in *geoip2.City, conf *GeoIP2Conf) *GeoIP2Output {
 		out.LatLong.TimeZone = in.Location.TimeZone
 	}
 	if conf.IncludePostal == true {
+		var postal GeoIP2Postal
+		out.Postal = &postal
 		out.Postal.Code = in.Postal.Code
 	}
 	if conf.IncludeTraits == true {
+		var traits GeoIP2Traits
+		out.Traits = &traits
 		out.Traits.IsAnonymousProxy = in.Traits.IsAnonymousProxy
 		out.Traits.IsSatelliteProvider = in.Traits.IsSatelliteProvider
 	}
 	if conf.IncludeRegisteredCountry == true {
+		var country GeoIP2Country
+		out.RegisteredCountry = &country
 		out.RegisteredCountry.Name = in.RegisteredCountry.Names[conf.Language]
 		out.RegisteredCountry.GeoNameId = in.RegisteredCountry.GeoNameID
 		out.RegisteredCountry.Code = in.RegisteredCountry.IsoCode
 	}
 	if conf.IncludeRepresentedCountry == true {
+		var country GeoIP2Country
+		out.RepresentedCountry = &country
 		out.RepresentedCountry.Name = in.RepresentedCountry.Names[conf.Language]
 		out.RepresentedCountry.GeoNameId = in.RepresentedCountry.GeoNameID
 		out.RepresentedCountry.Code = in.RepresentedCountry.IsoCode
