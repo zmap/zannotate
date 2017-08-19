@@ -18,8 +18,8 @@ import (
 	"io/ioutil"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/oschwald/geoip2-golang"
+	log "github.com/sirupsen/logrus"
 )
 
 type GeoIP2Conf struct {

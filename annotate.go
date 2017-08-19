@@ -21,8 +21,8 @@ import (
 	"os"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/oschwald/geoip2-golang"
+	log "github.com/sirupsen/logrus"
 )
 
 type GlobalConf struct {
