@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -29,6 +30,7 @@ type RawPeerIndexTableJSON struct {
 	CollectorBgpId string     `json:"collector_bgp_id"`
 	ViewName       string     `json:"view_name"`
 	Peers          []*RawPeer `json:"peers"`
+	Type           string     `json:"type"`
 }
 
 type RibEntry struct {
@@ -36,7 +38,6 @@ type RibEntry struct {
 	OriginatedTime uint32                       `json:"orginated_time"`
 	PathIdentifier uint32                       `json:"path_identifier"`
 	PathAttributes []bgp.PathAttributeInterface `json:"path_attributes"`
-	isAddPath      bool                         `json:"is_add_path"`
 }
 
 type Rib struct {
@@ -44,7 +45,6 @@ type Rib struct {
 	Prefix         bgp.AddrPrefixInterface `json:"prefix"`
 	Entries        []*RibEntry             `json:"entries"`
 	RouteFamily    bgp.RouteFamily         `json:"route_family"`
-	isAddPath      bool                    `json:"is_add_path"`
 }
 
 func raw(conf *MRT2JsonGlobalConf) {
@@ -61,31 +61,47 @@ func raw(conf *MRT2JsonGlobalConf) {
 			subType := mrt.MRTSubTypeTableDumpv2(msg.Header.SubType)
 			switch subType {
 			case mrt.PEER_INDEX_TABLE:
+				peerIndexTable := msg.Body.(*mrt.PeerIndexTable)
 				var out RawPeerIndexTableJSON
-				peers := msg.Body.(*mrt.PeerIndexTable).Peers
+				out.CollectorBgpId = peerIndexTable.CollectorBgpId.String()
+				out.ViewName = peerIndexTable.ViewName
+				out.Type = "peer_index_table"
+				for _, peer := range peerIndexTable.Peers {
+					var outPeer RawPeer
+					//outPeer.Type = peer.Type
+					outPeer.BgpId = peer.BgpId.String()
+					outPeer.IpAddress = peer.IpAddress.String()
+					outPeer.AS = peer.AS
+					out.Peers = append(out.Peers, &outPeer)
+				}
+				json, err := json.Marshal(out)
+				if err != nil {
+					log.Fatal("unable to json marshal peer table")
+				}
+				fmt.Println(string(json))
 			case mrt.RIB_IPV4_UNICAST, mrt.RIB_IPV6_UNICAST:
 				rib := msg.Body.(*mrt.Rib)
-				fmt.Println(rib)
-				//nlri := rib.Prefix
+				var out Rib
+				out.SequenceNumber = rib.SequenceNumber
+				out.Prefix = rib.Prefix
+				out.RouteFamily = rib.RouteFamily
+				for _, entry := range rib.Entries {
+					var ribOut RibEntry
+					ribOut.PeerIndex = entry.PeerIndex
+					ribOut.OriginatedTime = entry.OriginatedTime
+					ribOut.PathIdentifier = entry.PathIdentifier
+					ribOut.PathAttributes = entry.PathAttributes
+					out.Entries = append(out.Entries, &ribOut)
+				}
+				json, err := json.Marshal(out)
+				if err != nil {
+					log.Fatal("unable to json marshal peer table")
+				}
+				fmt.Println(string(json))
 
-				//paths := make([]*table.Path, 0, len(rib.Entries))
-
-				//for _, e := range rib.Entries {
-				//	if len(peers) < int(e.PeerIndex) {
-				//		log.Fatalf("invalid peer index: %d (PEER_INDEX_TABLE has only %d peers)\n",
-				//			e.PeerIndex, len(peers))
-				//	}
-				//	source := &table.PeerInfo{
-				//		AS: peers[e.PeerIndex].AS,
-				//		ID: peers[e.PeerIndex].BgpId,
-				//	}
-				//	t := time.Unix(int64(e.OriginatedTime), 0)
-				//	paths = append(paths, table.NewPath(source, nlri,
-				//		false, e.PathAttributes, t, false))
-				//}
-
+				//fmt.Println(rib)
 			case mrt.GEO_PEER_TABLE:
-				fmt.Printf("WARNING: Skipping GEO_PEER_TABLE: %s", msg.Body.(*mrt.GeoPeerTable))
+				//geopeers := msg.Body.(*mrt.GeoPeerTable)
 			default:
 				log.Fatalf("unsupported subType: %v", subType)
 			}
@@ -98,6 +114,23 @@ func paths(conf *MRT2JsonGlobalConf) {
 	zannotate.MrtRawIterate(conf.InputFilePath, func(msg *mrt.MRTMessage) {
 		fmt.Println(msg)
 	})
+	//nlri := rib.Prefix
+
+	//paths := make([]*table.Path, 0, len(rib.Entries))
+
+	//for _, e := range rib.Entries {
+	//	if len(peers) < int(e.PeerIndex) {
+	//		log.Fatalf("invalid peer index: %d (PEER_INDEX_TABLE has only %d peers)\n",
+	//			e.PeerIndex, len(peers))
+	//	}
+	//	source := &table.PeerInfo{
+	//		AS: peers[e.PeerIndex].AS,
+	//		ID: peers[e.PeerIndex].BgpId,
+	//	}
+	//	t := time.Unix(int64(e.OriginatedTime), 0)
+	//	paths = append(paths, table.NewPath(source, nlri,
+	//		false, e.PathAttributes, t, false))
+	//}
 }
 
 func main() {
