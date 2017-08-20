@@ -61,7 +61,7 @@ func raw(conf *MRT2JsonGlobalConf) {
 	}
 	zannotate.MrtRawIterate(conf.InputFilePath, func(msg *mrt.MRTMessage) {
 		if msg.Header.Type != mrt.TABLE_DUMPv2 {
-			fmt.Println("something is fucked")
+			log.Fatal("not an MRT TABLE_DUMPv2")
 		}
 		if msg.Header.Type == mrt.TABLE_DUMPv2 {
 			subType := mrt.MRTSubTypeTableDumpv2(msg.Header.SubType)
