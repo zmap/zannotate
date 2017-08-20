@@ -48,11 +48,17 @@ type Rib struct {
 }
 
 func raw(conf *MRT2JsonGlobalConf) {
-	f, err := os.OpenFile(conf.OutputFilePath, os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		log.Fatalf("Unable to open output file (%s): %s", conf.OutputFilePath, err.Error())
+	var f *os.File
+	if conf.OutputFilePath == "-" {
+		f = os.Stderr
+	} else {
+		var err error
+		f, err = os.OpenFile(conf.OutputFilePath, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil {
+			log.Fatal("unable to open metadata file:", err.Error())
+		}
+		defer f.Close()
 	}
-	defer f.Close()
 	zannotate.MrtRawIterate(conf.InputFilePath, func(msg *mrt.MRTMessage) {
 		if msg.Header.Type != mrt.TABLE_DUMPv2 {
 			fmt.Println("something is fucked")
@@ -78,7 +84,8 @@ func raw(conf *MRT2JsonGlobalConf) {
 				if err != nil {
 					log.Fatal("unable to json marshal peer table")
 				}
-				fmt.Println(string(json))
+				f.WriteString(string(json))
+				f.WriteString("\n")
 			case mrt.RIB_IPV4_UNICAST, mrt.RIB_IPV6_UNICAST:
 				rib := msg.Body.(*mrt.Rib)
 				var out Rib
@@ -97,16 +104,14 @@ func raw(conf *MRT2JsonGlobalConf) {
 				if err != nil {
 					log.Fatal("unable to json marshal peer table")
 				}
-				fmt.Println(string(json))
-
-				//fmt.Println(rib)
+				f.WriteString(string(json))
+				f.WriteString("\n")
 			case mrt.GEO_PEER_TABLE:
 				//geopeers := msg.Body.(*mrt.GeoPeerTable)
 			default:
 				log.Fatalf("unsupported subType: %v", subType)
 			}
 		}
-
 	})
 }
 
