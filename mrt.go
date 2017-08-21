@@ -194,13 +194,19 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 			out.Timestamp = time.Unix(int64(msg.Header.Timestamp), 0)
 			// process attributes for additional data
 			for _, a := range e.PathAttributes {
-				if _, ok := a.(*bgp.PathAttributeAsPath); ok {
-
+				if as, ok := a.(*bgp.PathAttributeAsPath); ok {
 					//fmt.Println(as.Value)
 					//params := make([]uint32, 0, len(as.Value))
-					//for _, param := range as.Value {
-					//	params = append(params, param)
-					//}
+					for _, param := range as.Value {
+						if p, ok := param.(*bgp.As4PathParam); ok {
+							out.Attributes.ASPath = p.AS
+							//fmt.Println(p.AS)
+						} else {
+							fmt.Println("fuck you")
+						}
+						//fmt.Println(i, param.AS)
+						//params = append(params, param)
+					}
 					//out.Attributes.ASPath = params
 				} else if nh, ok := a.(*bgp.PathAttributeNextHop); ok {
 					out.Attributes.NextHop = nh.Value
@@ -237,10 +243,10 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 						typ = "incomplete"
 					}
 					out.Attributes.Origin = typ
-					//} else if cl, ok := a.(*bgp.PathAttributeClusterList); ok {
-					//	fmt.Println(cl)
 				} else if _, ok := a.(*bgp.PathAttributeAtomicAggregate); ok {
 					out.Attributes.AtomicAggregate = true
+					//} else if cl, ok := a.(*bgp.PathAttributeClusterList); ok {
+					//	fmt.Println(cl)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeMpUnreachNLRI); ok {
 					//	fmt.Println(mprnlri)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeExtendedCommunities); ok {
@@ -259,10 +265,9 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 					//	fmt.Println(mprnlri)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeLargeCommunities); ok {
 					//	fmt.Println(mprnlri)
-					//} else {
-					//	log.Fatal("unknown", a.GetType())
-					//}
 					//} else if palp, ok := a.(*bgp.NewPathAttributeMpUnreachNLRI); ok {
+				} else {
+					log.Fatal("unsupported attribute type: ", a.GetType())
 				}
 			}
 
