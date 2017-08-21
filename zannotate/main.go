@@ -18,7 +18,7 @@ import (
 	"flag"
 	"os"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/zmap/zannotate"
 )
 
@@ -83,6 +83,10 @@ func main() {
 			log.Fatal("no GeoIP2 database provided")
 		}
 		zannotate.GeoIP2ParseRawIncludeString(&conf.GeoIP2Conf)
+	}
+	if conf.Routing == true {
+		zannotate.BuildTree(&conf.RoutingConf)
+		log.Debug("finished building routing table tree")
 	}
 	zannotate.DoAnnotation(&conf)
 }

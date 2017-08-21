@@ -143,6 +143,7 @@ type RIBEntry struct {
 	SequenceNumber uint32 `json:"sequence_number"`
 	Prefix         string `json:"prefix"`
 	From           From   `json:"peer"`
+	AFI            uint16
 	//RouteFamily    bgp.RouteFamily `json:"route_family"`
 	PeerIndex      uint16     `json:"peer_index"`
 	OriginatedTime time.Time  `json:"orginated_time"`
@@ -189,6 +190,7 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 
 			out.PeerIndex = e.PeerIndex
 			out.PathIdentifier = e.PathIdentifier
+			out.AFI = rib.Prefix.AFI()
 
 			out.OriginatedTime = time.Unix(int64(e.OriginatedTime), 0)
 			out.Timestamp = time.Unix(int64(msg.Header.Timestamp), 0)

@@ -36,11 +36,15 @@ type GlobalConf struct {
 
 	GeoIP2     bool
 	GeoIP2Conf GeoIP2Conf
+
+	Routing     bool
+	RoutingConf RoutingConf
 }
 
 type Result struct {
-	Ip     string        `json:"ip"`
-	GeoIP2 *GeoIP2Output `json:"geoip2"`
+	Ip      string         `json:"ip"`
+	GeoIP2  *GeoIP2Output  `json:"geoip2,omitempty"`
+	Routing *RoutingOutput `json:"routing,omitempty"`
 }
 
 func AnnotateRead(path string, in chan<- string) {
@@ -113,7 +117,9 @@ func AnnotateWorker(conf *GlobalConf, in <-chan string, out chan<- string,
 			}
 			res.GeoIP2 = GeoIP2FillStruct(record, &conf.GeoIP2Conf)
 		}
-		//fmt.Printf("%+v\n", res)
+		if conf.Routing {
+			res.Routing = RoutingFillStruct(ip, &conf.RoutingConf)
+		}
 		jsonRes, err := json.Marshal(res)
 		if err != nil {
 			log.Fatal("Unable to marshal JSON result", err)
