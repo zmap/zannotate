@@ -115,8 +115,6 @@ func MrtRawIterate(filename string, cb mrtMessageCallback) error {
 	return nil
 }
 
-// <dump-type>|<elem-type>|<record-ts>|<project>|<collector>|<peer-ASn>|<peer-IP>|<prefix>|<next-hop-IP>|<AS-path>|<origin-AS>|<communities>|<old-state>|<new-state>
-// &{{1503007200 13 2 128} RIB: Seq [12509] Prefix [12.193.41.0/24] Entries [[RIB_ENTRY: PeerIndex [2] OriginatedTime [1502956719] PathAttrs [[{Origin: i} 7018 701 3385 10933 {Nexthop: 198.108.93.55} {LocalPref: 100} {Communities: 237:2, 237:7018}]] RIB_ENTRY: PeerIndex [3] OriginatedTime [1502956719] PathAttrs [[{Origin: i} 7018 701 3385 10933 {Nexthop: 198.108.93.58} {LocalPref: 100} {Communities: 237:2, 237:7018}]]]]}
 type mrtPathCallback func(*RIBEntry)
 
 type From struct {
@@ -126,29 +124,31 @@ type From struct {
 }
 
 type Attributes struct {
-	Origin          string   `json:"origin,omitempty"`
-	LocalPref       uint32   `json:"local_pref,omitempty"`
-	Communities     []string `json:"communities,omitempty"`
-	NextHop         net.IP   `json:"next_hop,omitempty"`
-	OriginatorId    net.IP   `json:"originator_id,omitempty"`
-	ASPath          []uint32 `json:"as_path,omitempty"`
-	AtomicAggregate bool     `json:"atomic_aggregate"`
-	Aggregator      *From    `json:"aggregator,omitempty"`
-	MultiExitDesc   uint32   `json:"multi_exit_desc,omitempty"`
+	Origin          string                          `json:"origin,omitempty"`
+	LocalPref       uint32                          `json:"local_pref,omitempty"`
+	Communities     []string                        `json:"communities,omitempty"`
+	NextHop         net.IP                          `json:"next_hop,omitempty"`
+	OriginatorId    net.IP                          `json:"originator_id,omitempty"`
+	ASPath          []uint32                        `json:"as_path,omitempty"`
+	AtomicAggregate bool                            `json:"atomic_aggregate"`
+	Aggregator      *From                           `json:"aggregator,omitempty"`
+	MultiExitDesc   uint32                          `json:"multi_exit_desc,omitempty"`
+	MpReachNLRI     *bgp.PathAttributeMpReachNLRI   `json:"mp_reach_nlri,omitempty"`
+	MpUnreachNLRI   *bgp.PathAttributeMpUnreachNLRI `json:"mp_unreach_nlri,omitempty"`
 }
 
 type RIBEntry struct {
-	Type           string          `json:"type"`
-	SubType        string          `json:"sub_type"`
-	SequenceNumber uint32          `json:"sequence_number"`
-	Prefix         string          `json:"prefix"`
-	From           From            `json:"from"`
-	RouteFamily    bgp.RouteFamily `json:"route_family"`
-	PeerIndex      uint16          `json:"peer_index"`
-	OriginatedTime time.Time       `json:"orginated_time"`
-	Timestamp      time.Time       `json:"timestamp"`
-	PathIdentifier uint32          `json:"path_identifier"`
-	Attributes     Attributes      `json:"attributes"`
+	Type           string `json:"type"`
+	SubType        string `json:"sub_type"`
+	SequenceNumber uint32 `json:"sequence_number"`
+	Prefix         string `json:"prefix"`
+	From           From   `json:"peer"`
+	//RouteFamily    bgp.RouteFamily `json:"route_family"`
+	PeerIndex      uint16     `json:"peer_index"`
+	OriginatedTime time.Time  `json:"orginated_time"`
+	Timestamp      time.Time  `json:"timestamp"`
+	PathIdentifier uint32     `json:"path_identifier"`
+	Attributes     Attributes `json:"attributes"`
 }
 
 func MrtPathIterate(filename string, cb mrtPathCallback) error {
@@ -195,19 +195,13 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 			// process attributes for additional data
 			for _, a := range e.PathAttributes {
 				if as, ok := a.(*bgp.PathAttributeAsPath); ok {
-					//fmt.Println(as.Value)
-					//params := make([]uint32, 0, len(as.Value))
 					for _, param := range as.Value {
 						if p, ok := param.(*bgp.As4PathParam); ok {
 							out.Attributes.ASPath = p.AS
-							//fmt.Println(p.AS)
 						} else {
-							fmt.Println("fuck you")
+							log.Fatal("unknown AS path type")
 						}
-						//fmt.Println(i, param.AS)
-						//params = append(params, param)
 					}
-					//out.Attributes.ASPath = params
 				} else if nh, ok := a.(*bgp.PathAttributeNextHop); ok {
 					out.Attributes.NextHop = nh.Value
 				} else if meh, ok := a.(*bgp.PathAttributeMultiExitDisc); ok {
@@ -245,10 +239,12 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 					out.Attributes.Origin = typ
 				} else if _, ok := a.(*bgp.PathAttributeAtomicAggregate); ok {
 					out.Attributes.AtomicAggregate = true
+				} else if mprnlri, ok := a.(*bgp.PathAttributeMpReachNLRI); ok {
+					out.Attributes.MpReachNLRI = mprnlri
+				} else if mprnlri, ok := a.(*bgp.PathAttributeMpUnreachNLRI); ok {
+					out.Attributes.MpUnreachNLRI = mprnlri
 					//} else if cl, ok := a.(*bgp.PathAttributeClusterList); ok {
 					//	fmt.Println(cl)
-					//} else if mprnlri, ok := a.(*bgp.PathAttributeMpUnreachNLRI); ok {
-					//	fmt.Println(mprnlri)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeExtendedCommunities); ok {
 					//	fmt.Println(mprnlri)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeAs4Path); ok {
@@ -270,7 +266,6 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 					log.Fatal("unsupported attribute type: ", a.GetType())
 				}
 			}
-
 			cb(&out)
 		}
 	})

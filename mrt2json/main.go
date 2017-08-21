@@ -108,8 +108,9 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 
 func paths(conf *MRT2JsonGlobalConf, f *os.File) {
 	zannotate.MrtPathIterate(conf.InputFilePath, func(msg *zannotate.RIBEntry) {
-		j, _ := json.Marshal(msg)
-		fmt.Println(string(j))
+		json, _ := json.Marshal(msg)
+		f.WriteString(string(json))
+		f.WriteString("\n")
 	})
 }
 
@@ -160,7 +161,6 @@ func main() {
 		}
 		defer f.Close()
 	}
-
 	if os.Args[1] == "raw" {
 		raw(&conf, f)
 	} else if os.Args[1] == "entries" {
@@ -168,5 +168,4 @@ func main() {
 	} else {
 		log.Fatal("invalid command")
 	}
-
 }
