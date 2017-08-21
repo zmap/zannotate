@@ -120,20 +120,20 @@ func MrtRawIterate(filename string, cb mrtMessageCallback) error {
 type mrtPathCallback func(*RIBEntry)
 
 type From struct {
-	AS      uint32 `json:"as"`
-	ID      net.IP `json:"id"`
-	Address net.IP `json:"address"`
+	AS      uint32 `json:"as,omitempty"`
+	ID      net.IP `json:"id,omitempty"`
+	Address net.IP `json:"address,omitempty"`
 }
 
 type Attributes struct {
-	Origin          string   `json:"origin"`
-	LocalPref       uint32   `json:"local_pref"`
-	Communities     []string `json:"communities"`
+	Origin          string   `json:"origin,omitempty"`
+	LocalPref       uint32   `json:"local_pref,omitempty"`
+	Communities     []string `json:"communities,omitempty"`
 	NextHop         net.IP   `json:"next_hop,omitempty"`
 	OriginatorId    net.IP   `json:"originator_id,omitempty"`
-	ASPath          []uint32 `json:"as_path"`
+	ASPath          []uint32 `json:"as_path,omitempty"`
 	AtomicAggregate bool     `json:"atomic_aggregate"`
-	Aggregate       From     `json:"aggregate"`
+	Aggregator      *From    `json:"aggregator,omitempty"`
 	MultiExitDesc   uint32   `json:"multi_exit_desc,omitempty"`
 }
 
@@ -209,16 +209,26 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 				} else if lp, ok := a.(*bgp.PathAttributeLocalPref); ok {
 					out.Attributes.LocalPref = lp.Value
 				} else if agg, ok := a.(*bgp.PathAttributeAggregator); ok {
-					// TODO
-					fmt.Println(agg)
+					var f From
+					f.AS = agg.Value.AS
+					f.Address = agg.Value.Address
+					out.Attributes.Aggregator = &f
 				} else if comm, ok := a.(*bgp.PathAttributeCommunities); ok {
-					// TODO
-					fmt.Println(comm)
+					l := []string{}
+					for _, v := range comm.Value {
+						n, ok := bgp.WellKnownCommunityNameMap[bgp.WellKnownCommunity(v)]
+						if ok {
+							l = append(l, n)
+						} else {
+							l = append(l, fmt.Sprintf("%d:%d", (0xffff0000&v)>>16, 0xffff&v))
+						}
+					}
+					out.Attributes.Communities = l
 				} else if orgId, ok := a.(*bgp.PathAttributeOriginatorId); ok {
 					out.Attributes.OriginatorId = orgId.Value
-				} else if mprnlri, ok := a.(*bgp.PathAttributeOrigin); ok {
+				} else if origin, ok := a.(*bgp.PathAttributeOrigin); ok {
 					var typ string
-					switch mprnlri.Value[0] {
+					switch origin.Value[0] {
 					case bgp.BGP_ORIGIN_ATTR_TYPE_IGP:
 						typ = "igp"
 					case bgp.BGP_ORIGIN_ATTR_TYPE_EGP:
@@ -229,8 +239,8 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 					out.Attributes.Origin = typ
 					//} else if cl, ok := a.(*bgp.PathAttributeClusterList); ok {
 					//	fmt.Println(cl)
-					//} else if mprnlri, ok := a.(*bgp.PathAttributeAtomicAggregate); ok {
-					//	fmt.Println(mprnlri)
+				} else if _, ok := a.(*bgp.PathAttributeAtomicAggregate); ok {
+					out.Attributes.AtomicAggregate = true
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeMpUnreachNLRI); ok {
 					//	fmt.Println(mprnlri)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeExtendedCommunities); ok {
