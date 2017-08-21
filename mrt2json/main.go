@@ -33,109 +33,84 @@ type RawPeerIndexTableJSON struct {
 	Type           string     `json:"type"`
 }
 
-type RibEntry struct {
+type RawRibEntry struct {
 	PeerIndex      uint16                       `json:"peer_index"`
 	OriginatedTime uint32                       `json:"orginated_time"`
 	PathIdentifier uint32                       `json:"path_identifier"`
 	PathAttributes []bgp.PathAttributeInterface `json:"path_attributes"`
+	Type           string                       `json:"type"`
 }
 
-type Rib struct {
+type RawRib struct {
+	SubType        string                  `json:"sub_type"`
 	SequenceNumber uint32                  `json:"sequence_number"`
 	Prefix         bgp.AddrPrefixInterface `json:"prefix"`
-	Entries        []*RibEntry             `json:"entries"`
+	Entries        []*RawRibEntry          `json:"entries"`
 	RouteFamily    bgp.RouteFamily         `json:"route_family"`
 }
 
-func raw(conf *MRT2JsonGlobalConf) {
-	var f *os.File
-	if conf.OutputFilePath == "-" {
-		f = os.Stderr
-	} else {
-		var err error
-		f, err = os.OpenFile(conf.OutputFilePath, os.O_WRONLY|os.O_CREATE, 0666)
-		if err != nil {
-			log.Fatal("unable to open metadata file:", err.Error())
-		}
-		defer f.Close()
-	}
+func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 	zannotate.MrtRawIterate(conf.InputFilePath, func(msg *mrt.MRTMessage) {
 		if msg.Header.Type != mrt.TABLE_DUMPv2 {
 			log.Fatal("not an MRT TABLE_DUMPv2")
 		}
-		if msg.Header.Type == mrt.TABLE_DUMPv2 {
-			subType := mrt.MRTSubTypeTableDumpv2(msg.Header.SubType)
-			switch subType {
-			case mrt.PEER_INDEX_TABLE:
-				peerIndexTable := msg.Body.(*mrt.PeerIndexTable)
-				var out RawPeerIndexTableJSON
-				out.CollectorBgpId = peerIndexTable.CollectorBgpId.String()
-				out.ViewName = peerIndexTable.ViewName
-				out.Type = "peer_index_table"
-				for _, peer := range peerIndexTable.Peers {
-					var outPeer RawPeer
-					//outPeer.Type = peer.Type
-					outPeer.BgpId = peer.BgpId.String()
-					outPeer.IpAddress = peer.IpAddress.String()
-					outPeer.AS = peer.AS
-					out.Peers = append(out.Peers, &outPeer)
-				}
-				json, err := json.Marshal(out)
-				if err != nil {
-					log.Fatal("unable to json marshal peer table")
-				}
-				f.WriteString(string(json))
-				f.WriteString("\n")
-			case mrt.RIB_IPV4_UNICAST, mrt.RIB_IPV6_UNICAST:
-				rib := msg.Body.(*mrt.Rib)
-				var out Rib
-				out.SequenceNumber = rib.SequenceNumber
-				out.Prefix = rib.Prefix
-				out.RouteFamily = rib.RouteFamily
-				for _, entry := range rib.Entries {
-					var ribOut RibEntry
-					ribOut.PeerIndex = entry.PeerIndex
-					ribOut.OriginatedTime = entry.OriginatedTime
-					ribOut.PathIdentifier = entry.PathIdentifier
-					ribOut.PathAttributes = entry.PathAttributes
-					out.Entries = append(out.Entries, &ribOut)
-				}
-				json, err := json.Marshal(out)
-				if err != nil {
-					log.Fatal("unable to json marshal peer table")
-				}
-				f.WriteString(string(json))
-				f.WriteString("\n")
-			case mrt.GEO_PEER_TABLE:
-				//geopeers := msg.Body.(*mrt.GeoPeerTable)
-			default:
-				log.Fatalf("unsupported subType: %v", subType)
+		switch mrt.MRTSubTypeTableDumpv2(msg.Header.SubType) {
+		case mrt.PEER_INDEX_TABLE:
+			peerIndexTable := msg.Body.(*mrt.PeerIndexTable)
+			var out RawPeerIndexTableJSON
+			out.CollectorBgpId = peerIndexTable.CollectorBgpId.String()
+			out.ViewName = peerIndexTable.ViewName
+			out.Type = "peer_index_table"
+			for _, peer := range peerIndexTable.Peers {
+				var outPeer RawPeer
+				//outPeer.Type = peer.Type
+				outPeer.BgpId = peer.BgpId.String()
+				outPeer.IpAddress = peer.IpAddress.String()
+				outPeer.AS = peer.AS
+				out.Peers = append(out.Peers, &outPeer)
 			}
+			json, err := json.Marshal(out)
+			if err != nil {
+				log.Fatal("unable to json marshal peer table")
+			}
+			f.WriteString(string(json))
+			f.WriteString("\n")
+		case mrt.RIB_IPV4_UNICAST, mrt.RIB_IPV6_UNICAST,
+			mrt.RIB_IPV4_MULTICAST, mrt.RIB_IPV6_MULTICAST, mrt.RIB_GENERIC:
+			//
+			rib := msg.Body.(*mrt.Rib)
+			var out RawRib
+			out.SequenceNumber = rib.SequenceNumber
+			out.Prefix = rib.Prefix
+			out.RouteFamily = rib.RouteFamily
+			for _, entry := range rib.Entries {
+				var ribOut RawRibEntry
+				ribOut.PeerIndex = entry.PeerIndex
+				ribOut.OriginatedTime = entry.OriginatedTime
+				ribOut.PathIdentifier = entry.PathIdentifier
+				ribOut.PathAttributes = entry.PathAttributes
+				out.Entries = append(out.Entries, &ribOut)
+			}
+			out.SubType = zannotate.MrtSubTypeToName(msg.Header.SubType)
+			json, err := json.Marshal(out)
+			if err != nil {
+				log.Fatal("unable to json marshal peer table")
+			}
+			f.WriteString(string(json))
+			f.WriteString("\n")
+		case mrt.GEO_PEER_TABLE:
+			//geopeers := msg.Body.(*mrt.GeoPeerTable)
+		default:
+			log.Fatalf("unsupported subType: %v", msg.Header.SubType)
 		}
 	})
 }
 
-func paths(conf *MRT2JsonGlobalConf) {
-	zannotate.MrtRawIterate(conf.InputFilePath, func(msg *mrt.MRTMessage) {
-		fmt.Println(msg)
+func paths(conf *MRT2JsonGlobalConf, f *os.File) {
+	zannotate.MrtPathIterate(conf.InputFilePath, func(msg *zannotate.RIBEntry) {
+		j, _ := json.Marshal(msg)
+		fmt.Println(string(j))
 	})
-	//nlri := rib.Prefix
-
-	//paths := make([]*table.Path, 0, len(rib.Entries))
-
-	//for _, e := range rib.Entries {
-	//	if len(peers) < int(e.PeerIndex) {
-	//		log.Fatalf("invalid peer index: %d (PEER_INDEX_TABLE has only %d peers)\n",
-	//			e.PeerIndex, len(peers))
-	//	}
-	//	source := &table.PeerInfo{
-	//		AS: peers[e.PeerIndex].AS,
-	//		ID: peers[e.PeerIndex].BgpId,
-	//	}
-	//	t := time.Unix(int64(e.OriginatedTime), 0)
-	//	paths = append(paths, table.NewPath(source, nlri,
-	//		false, e.PathAttributes, t, false))
-	//}
 }
 
 func main() {
@@ -174,10 +149,22 @@ func main() {
 	default:
 		log.Fatal("Unknown verbosity level specified. Must be between 1 (lowest)--5 (highest)")
 	}
+	var f *os.File
+	if conf.OutputFilePath == "-" {
+		f = os.Stdout
+	} else {
+		var err error
+		f, err = os.OpenFile(conf.OutputFilePath, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil {
+			log.Fatal("unable to open metadata file:", err.Error())
+		}
+		defer f.Close()
+	}
+
 	if os.Args[1] == "raw" {
-		raw(&conf)
-	} else if os.Args[1] == "paths" {
-		paths(&conf)
+		raw(&conf, f)
+	} else if os.Args[1] == "entries" {
+		paths(&conf, f)
 	} else {
 		log.Fatal("invalid command")
 	}
