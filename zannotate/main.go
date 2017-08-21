@@ -45,9 +45,10 @@ func main() {
 	flags.StringVar(&conf.GeoIP2Conf.RawInclude, "geoip2-fields", "*",
 		"city, continent, country, location, postal, registered_country, subdivisions, traits")
 	// Routing Table AS Data
-	//flags.BoolVar(&conf.Routing, "routing", false, "add routing data")
-	//flags.StringVar(&conf.RoutingTablePath, "routing-table-path", "", "geolocate")
-	//flags.StringVar(&conf.ASData, "as-data", "", "geolocate")
+	flags.BoolVar(&conf.Routing, "routing", false, "routing")
+	flags.StringVar(&conf.RoutingConf.RoutingTablePath, "mrt-file", "",
+		"path to MRT TABLE_DUMPv2 file")
+	flags.StringVar(&conf.RoutingConf.ASNamesPath, "as-names", "", "path to as names file")
 
 	flags.Parse(os.Args[1:])
 	if conf.LogFilePath != "" {
@@ -73,7 +74,7 @@ func main() {
 		log.Fatal("Unknown verbosity level specified. Must be between 1 (lowest)--5 (highest)")
 	}
 	// Check that we're doing anything
-	if conf.GeoIP2 != true {
+	if conf.GeoIP2 != true && conf.Routing != true {
 		log.Fatal("No action requested")
 	}
 	// Check GeoIP2 sanity

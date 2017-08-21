@@ -9,7 +9,7 @@ import (
 	"github.com/osrg/gobgp/packet/bgp"
 	"github.com/osrg/gobgp/packet/mrt"
 	log "github.com/sirupsen/logrus"
-	"github.com/zmap/zannotate"
+	"github.com/zmap/zannotate/zmrt"
 )
 
 type MRT2JsonGlobalConf struct {
@@ -50,7 +50,7 @@ type RawRib struct {
 }
 
 func raw(conf *MRT2JsonGlobalConf, f *os.File) {
-	zannotate.MrtRawIterate(conf.InputFilePath, func(msg *mrt.MRTMessage) {
+	zmrt.MrtRawIterate(conf.InputFilePath, func(msg *mrt.MRTMessage) {
 		if msg.Header.Type != mrt.TABLE_DUMPv2 {
 			log.Fatal("not an MRT TABLE_DUMPv2")
 		}
@@ -91,7 +91,7 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 				ribOut.PathAttributes = entry.PathAttributes
 				out.Entries = append(out.Entries, &ribOut)
 			}
-			out.SubType = zannotate.MrtSubTypeToName(msg.Header.SubType)
+			out.SubType = zmrt.MrtSubTypeToName(msg.Header.SubType)
 			json, err := json.Marshal(out)
 			if err != nil {
 				log.Fatal("unable to json marshal peer table")
@@ -107,7 +107,7 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 }
 
 func paths(conf *MRT2JsonGlobalConf, f *os.File) {
-	zannotate.MrtPathIterate(conf.InputFilePath, func(msg *zannotate.RIBEntry) {
+	zmrt.MrtPathIterate(conf.InputFilePath, func(msg *zmrt.RIBEntry) {
 		json, _ := json.Marshal(msg)
 		f.WriteString(string(json))
 		f.WriteString("\n")
