@@ -85,6 +85,9 @@ func main() {
 		zannotate.GeoIP2ParseRawIncludeString(&conf.GeoIP2Conf)
 	}
 	if conf.Routing == true {
+		if conf.RoutingConf.RoutingTablePath == "" {
+			log.Fatal("no routing file (MRT TABLE_DUMPv2) provided")
+		}
 		zannotate.BuildTree(&conf.RoutingConf)
 		log.Debug("finished building routing table tree")
 	}
