@@ -15,7 +15,11 @@
 package zannotate
 
 import (
+	"encoding/json"
+	"io"
+	"log"
 	"net"
+	"os"
 
 	"github.com/osrg/gobgp/packet/bgp"
 	"github.com/zmap/go-iptree/iptree"
@@ -23,9 +27,11 @@ import (
 )
 
 type ASNameNode struct {
-	ASN         uint32 `json:"asn"`
-	Description string `json:"as_description"`
-	Name        string `json:"as_name"`
+	ASN          uint32 `json:"asn"`
+	Description  string `json:"as_description"`
+	Name         string `json:"as_name"`
+	Organization string `json:"organization"`
+	CountryCode  string `json:"country_code"`
 }
 
 type ASTreeNode struct {
@@ -49,7 +55,21 @@ type RoutingOutput struct {
 
 func BuildTree(conf *RoutingConf) {
 	if conf.ASNamesPath != "" {
-
+		conf.ASNames = make(map[uint32]ASNameNode)
+		f, err := os.Open(conf.ASNamesPath)
+		if err != nil {
+			log.Fatalf("Unable to open as name file (%s): %s", conf.ASNamesPath, err.Error())
+		}
+		d := json.NewDecoder(f)
+		for {
+			var m ASNameNode
+			if err := d.Decode(&m); err == io.EOF {
+				break
+			} else if err != nil {
+				log.Fatalf("%s", err)
+			}
+			conf.ASNames[m.ASN] = m
+		}
 	}
 	// build radix tree and populate with
 	conf.IPTree = iptree.New()
@@ -61,20 +81,25 @@ func BuildTree(conf *RoutingConf) {
 			if len(n.Path) > 0 {
 				n.ASN = n.Path[len(n.Path)-1]
 			}
-			conf.IPTree.AddByString(e.Prefix, n)
+			if err := conf.IPTree.AddByString(e.Prefix, n); err != nil {
+				//log.Fatal("unable to add to tree ", err)
+			}
 		}
 	})
 }
 
 func RoutingFillStruct(ip net.IP, conf *RoutingConf) *RoutingOutput {
 	var out RoutingOutput
-	if n, ok, _ := conf.IPTree.Get(ip); ok {
+	if n, ok, err := conf.IPTree.Get(ip); ok && err == nil {
 		node := n.(ASTreeNode)
 		out.Prefix = node.Prefix
 		out.Path = node.Path
 		out.ASN = node.ASN
 		out.Description = node.Description
 		out.Name = node.Name
+		return &out
+	} else {
+		log.Fatal("not ok", n, err)
 	}
-	return &out
+	return nil
 }
