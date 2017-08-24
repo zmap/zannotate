@@ -28,18 +28,16 @@ import (
 
 type ASNameNode struct {
 	ASN          uint32 `json:"asn"`
-	Description  string `json:"as_description"`
-	Name         string `json:"as_name"`
+	Description  string `json:"description"`
+	Name         string `json:"name"`
 	Organization string `json:"organization"`
 	CountryCode  string `json:"country_code"`
 }
 
 type ASTreeNode struct {
-	Prefix      string   `json:"prefix"`
-	ASN         uint32   `json:"asn,omitempty"`
-	Path        []uint32 `json:"path,omitempty"`
-	Description string   `json:"as_description,omitempty"`
-	Name        string   `json:"as_name,omitempty"`
+	Prefix string   `json:"prefix"`
+	ASN    uint32   `json:"asn,omitempty"`
+	Path   []uint32 `json:"path,omitempty"`
 }
 
 type RoutingConf struct {
@@ -50,6 +48,10 @@ type RoutingConf struct {
 }
 
 type RoutingOutput struct {
+	Description  string `json:"description,omitempty"`
+	Name         string `json:"name,omitempty"`
+	Organization string `json:"organization"`
+	CountryCode  string `json:"country_code"`
 	ASTreeNode
 }
 
@@ -95,8 +97,14 @@ func RoutingFillStruct(ip net.IP, conf *RoutingConf) *RoutingOutput {
 		out.Prefix = node.Prefix
 		out.Path = node.Path
 		out.ASN = node.ASN
-		out.Description = node.Description
-		out.Name = node.Name
+		if conf.ASNamesPath != "" {
+			if name, ok := conf.ASNames[out.ASN]; ok {
+				out.Description = name.Description
+				out.Organization = name.Organization
+				out.Name = name.Name
+				out.CountryCode = name.CountryCode
+			}
+		}
 		return &out
 	} else {
 		log.Fatal("not ok", n, err)
