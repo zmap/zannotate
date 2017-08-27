@@ -26,13 +26,15 @@ import (
 )
 
 type GlobalConf struct {
-	InputFilePath    string
-	InputFileType    string
-	OutputFilePath   string
-	MetadataFilePath string
-	LogFilePath      string
-	Verbosity        int
-	Threads          int
+	InputFilePath           string
+	InputFileType           string
+	OutputFilePath          string
+	MetadataFilePath        string
+	LogFilePath             string
+	Verbosity               int
+	Threads                 int
+	JSONIPFieldName         string
+	JSONAnnotationFieldName string
 
 	GeoIP2     bool
 	GeoIP2Conf GeoIP2Conf
@@ -42,7 +44,7 @@ type GlobalConf struct {
 }
 
 type Result struct {
-	Ip      string         `json:"ip"`
+	Ip      string         `json:"ip,omitempty"`
 	GeoIP2  *GeoIP2Output  `json:"geoip2,omitempty"`
 	Routing *RoutingOutput `json:"routing,omitempty"`
 }
@@ -104,12 +106,36 @@ func AnnotateWorker(conf *GlobalConf, in <-chan string, out chan<- string,
 	}
 	log.Debug("annotate worker ", i, " initialization finished")
 	for line := range in {
-		ip := net.ParseIP(line)
+		// all lookup operations performed off of IP, which we parse into
+		// depending on the configuration type
+		var ip net.IP
+		// JSON use only, but must be accessible throughout the loop
+		var jsonMap map[string]interface{}
+		if conf.InputFileType == "json" {
+			var inParsed interface{}
+			if err := json.Unmarshal([]byte(line), &inParsed); err != nil {
+				log.Fatal("unable to parse json: ", line)
+			}
+			jsonMap = inParsed.(map[string]interface{})
+			if val, ok := jsonMap[conf.JSONIPFieldName]; ok {
+				if valS, ok := val.(string); ok {
+					ip = net.ParseIP(valS)
+				} else {
+					log.Fatal("ip is not a string in JSON for ", line)
+				}
+			} else {
+				log.Fatal("unable to find IP address field in ", line)
+			}
+			if _, ok := jsonMap[conf.JSONAnnotationFieldName]; ok {
+				log.Fatal("input record already contains annotation key ", line)
+			}
+		} else {
+			ip = net.ParseIP(line)
+		}
 		if ip == nil {
 			log.Fatal("invalid IP received: ", line)
 		}
 		var res Result
-		res.Ip = ip.String()
 		if conf.GeoIP2 == true {
 			record, err := geoIP2db.City(ip)
 			if err != nil {
@@ -120,11 +146,22 @@ func AnnotateWorker(conf *GlobalConf, in <-chan string, out chan<- string,
 		if conf.Routing {
 			res.Routing = RoutingFillStruct(ip, &conf.RoutingConf)
 		}
-		jsonRes, err := json.Marshal(res)
-		if err != nil {
-			log.Fatal("Unable to marshal JSON result", err)
+		if conf.InputFileType == "json" {
+			jsonMap[conf.JSONAnnotationFieldName] = res
+			jsonRes, err := json.Marshal(jsonMap)
+			if err != nil {
+				log.Fatal("Unable to marshal JSON result", err)
+			}
+			out <- string(jsonRes)
+
+		} else {
+			res.Ip = ip.String()
+			jsonRes, err := json.Marshal(res)
+			if err != nil {
+				log.Fatal("Unable to marshal JSON result", err)
+			}
+			out <- string(jsonRes)
 		}
-		out <- string(jsonRes)
 	}
 	wg.Done()
 	log.Debug("annotate worker ", i, " finished")

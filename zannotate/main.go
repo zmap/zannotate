@@ -49,6 +49,9 @@ func main() {
 	flags.StringVar(&conf.RoutingConf.RoutingTablePath, "mrt-file", "",
 		"path to MRT TABLE_DUMPv2 file")
 	flags.StringVar(&conf.RoutingConf.ASNamesPath, "as-names", "", "path to as names file")
+	// json annotation configuration
+	flags.StringVar(&conf.JSONIPFieldName, "json-ip-field", "ip", "key in JSON that contains IP address")
+	flags.StringVar(&conf.JSONAnnotationFieldName, "json-annotation-field", "zannotate", "key that metadata is injeted at")
 
 	flags.Parse(os.Args[1:])
 	if conf.LogFilePath != "" {
@@ -76,6 +79,9 @@ func main() {
 	// Check that we're doing anything
 	if conf.GeoIP2 != true && conf.Routing != true {
 		log.Fatal("No action requested")
+	}
+	if conf.InputFileType != "ips" && conf.InputFileType != "json" {
+		log.Fatal("invalid input file type")
 	}
 	// Check GeoIP2 sanity
 	if conf.GeoIP2 == true {
