@@ -17,13 +17,13 @@ package zmrt
 import (
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"time"
 
 	"github.com/osrg/gobgp/packet/bgp"
 	"github.com/osrg/gobgp/packet/mrt"
+	log "github.com/sirupsen/logrus"
 )
 
 type mrtMessageCallback func(*mrt.MRTMessage)

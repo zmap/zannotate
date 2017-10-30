@@ -17,11 +17,11 @@ package zannotate
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"net"
 	"os"
 
 	"github.com/osrg/gobgp/packet/bgp"
+	log "github.com/sirupsen/logrus"
 	"github.com/zmap/go-iptree/iptree"
 	"github.com/zmap/zannotate/zmrt"
 )
