@@ -9,4 +9,4 @@ with additional network metadata. Right now this includes:
 
 For example, you can add Maxmind geolocation data to a list of IPs:
 
-	cat ips.csv | zannotate --geoip2 --geoip-database=geoip2.mmdb
+	cat ips.csv | zannotate --geoip2 --geoip2-database=geoip2.mmdb
