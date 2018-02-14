@@ -244,7 +244,7 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 					out.Attributes.OriginatorId = orgId.Value
 				} else if origin, ok := a.(*bgp.PathAttributeOrigin); ok {
 					var typ string
-					switch origin.Value[0] {
+					switch origin.Value {
 					case bgp.BGP_ORIGIN_ATTR_TYPE_IGP:
 						typ = "igp"
 					case bgp.BGP_ORIGIN_ATTR_TYPE_EGP:
