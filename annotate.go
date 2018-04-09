@@ -65,29 +65,16 @@ func AnnotateRead(path string, in chan<- string) {
 		log.Debug("reading input from ", path)
 	}
 	r := bufio.NewReader(f)
-	line, err := Readln(r)
+	line, err := r.ReadString('\n')
 	for err == nil {
 		in <- line
-		line, err = Readln(r)
+		line, err = r.ReadString('\n')
 	}
 	if err != nil && err != io.EOF {
 		log.Fatal("input unable to read file", err)
 	}
 	close(in)
 	log.Debug("read thread finished")
-}
-
-func Readln(r *bufio.Reader) (string, error) {
-	var (
-		isPrefix bool  = true
-		err      error = nil
-		line, ln []byte
-	)
-	for isPrefix && err == nil {
-		line, isPrefix, err = r.ReadLine()
-		ln = append(ln, line...)
-	}
-	return string(ln), err
 }
 
 func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
