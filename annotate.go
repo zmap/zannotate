@@ -17,6 +17,7 @@ package zannotate
 import (
 	"bufio"
 	"encoding/json"
+	"io"
 	"net"
 	"os"
 	"sync"
@@ -63,15 +64,30 @@ func AnnotateRead(path string, in chan<- string) {
 		}
 		log.Debug("reading input from ", path)
 	}
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		in <- s.Text()
+	r := bufio.NewReader(f)
+	line, err := Readln(r)
+	for err == nil {
+		in <- line
+		line, err = Readln(r)
 	}
-	if err := s.Err(); err != nil {
+	if err != nil && err != io.EOF {
 		log.Fatal("input unable to read file", err)
 	}
 	close(in)
 	log.Debug("read thread finished")
+}
+
+func Readln(r *bufio.Reader) (string, error) {
+	var (
+		isPrefix bool  = true
+		err      error = nil
+		line, ln []byte
+	)
+	for isPrefix && err == nil {
+		line, isPrefix, err = r.ReadLine()
+		ln = append(ln, line...)
+	}
+	return string(ln), err
 }
 
 func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
