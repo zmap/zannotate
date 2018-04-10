@@ -20,6 +20,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/oschwald/geoip2-golang"
@@ -67,7 +68,7 @@ func AnnotateRead(path string, in chan<- string) {
 	r := bufio.NewReader(f)
 	line, err := r.ReadString('\n')
 	for err == nil {
-		in <- line
+		in <- strings.TrimSuffix(line, "\n")
 		line, err = r.ReadString('\n')
 	}
 	if err != nil && err != io.EOF {
