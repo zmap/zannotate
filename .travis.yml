@@ -6,8 +6,4 @@ install:
 - go get -t ./...
 test:
 - go test -v ./...
-notifications:
-  email:
-  - zmap-devel@umich.edu
-  slack:
-    secure: f71rNKDvqdiBJt6+b6k4/08jo0fMsmSS09LDl4H2liN+E1hKaTSVZRdhEI1p6Dotl3NQXJnDcBWM289+M97GSEBzZ2W9wDN6Zrdy/wrjjT3WMtPy7RWspUqNsfEltDh91dYtm4b0vTpHnOUO2PEP/MFT9UxWNuDUIM0F15d6T4s6oIqr7q2hGfDYPtBtOY8aB+qPGnbHOvUxYT72pPJMt82/NYmVm/VsgFMyAVUGY6SymWOPV54nK8f5f6IT1w/421i+RZVlOzQXZSo6veZJAK7XLrTBLQinXcZRnPE0KsoGJB/dOfkmaitBWhTGdhkhh+MF1wm+9s1CwznQGbGbfvj33TK9JlsjJep6YcYwFrLqmIL8bC4ayMrMxWfoy0Ufj+iPlWVS5WuuyEUVBBvLDaI2qxDBk9cO0mOQSsxXWJEvejmIopHN9vSCMamlN/NQ+UtrVz+ExNjvclZHc4zb0a1sxGOhIRjBawuL5pYDdDJR9lslPyVQdQ6mCPJgzTJ5Cn3MwXlpdLoAMUziIwSx3/64ZQ7OBq3Se+4Jd4XA6rNxuUS6wWcBVZuOF8wIk2MAzRTMUxY6/l6Siq0IdfhJJpa/7pjBp3Y77NJvqICkIYSXeaJRgm3s1yRZEDhcFmBBO3xLNrDWfMuSCFwVjuOcBhpkDAOTS/d7vDR3ZxRuJQ8=
+
