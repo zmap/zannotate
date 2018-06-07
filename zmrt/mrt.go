@@ -118,7 +118,9 @@ func MrtRawIterate(raw io.Reader, cb mrtMessageCallback) error {
 		if msg, err := mrt.ParseMRTBody(h, buf); err != nil {
 			return fmt.Errorf("failed to parse: %s", err)
 		} else {
-			cb(msg)
+			if err := cb(msg); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -163,7 +165,7 @@ type RIBEntry struct {
 
 func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 	var peers []*mrt.Peer
-	MrtRawIterate(raw, func(msg *mrt.MRTMessage) error {
+	if err := MrtRawIterate(raw, func(msg *mrt.MRTMessage) error {
 		if msg.Header.Type != mrt.TABLE_DUMPv2 {
 			return errors.New("MRT file is not a TABLE_DUMPv2")
 		}
@@ -281,6 +283,8 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 			cb(&out)
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
 	return nil
 }

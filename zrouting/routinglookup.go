@@ -57,7 +57,6 @@ type RoutingLookupTree struct {
 //	ASNamesPath      string
 
 func (t *RoutingLookupTree) PopulateFromMRT(raw io.Reader) {
-	// build radix tree and populate with
 	t.IPTree = iptree.New()
 	zmrt.MrtPathIterate(raw, func(e *zmrt.RIBEntry) {
 		if e.AFI == bgp.AFI_IP {
