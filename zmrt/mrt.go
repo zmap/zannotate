@@ -1,5 +1,5 @@
 /*
- * ZAnnotate Copyright 2017 Regents of the University of Michigan
+ * ZAnnotate Copyright 2018 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,18 +15,17 @@
 package zmrt
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"time"
 
 	"github.com/osrg/gobgp/packet/bgp"
 	"github.com/osrg/gobgp/packet/mrt"
-	log "github.com/sirupsen/logrus"
 )
 
-type mrtMessageCallback func(*mrt.MRTMessage)
+type mrtMessageCallback func(*mrt.MRTMessage) error
 
 func MrtTypeToName(t mrt.MRTType) string {
 	switch t {
@@ -100,28 +99,24 @@ func MrtSubTypeToName(t uint16) string {
 	}
 }
 
-func MrtRawIterate(filename string, cb mrtMessageCallback) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		log.Fatalf("failed to open file: %s", err)
-	}
+func MrtRawIterate(raw io.Reader, cb mrtMessageCallback) error {
 	for {
 		buf := make([]byte, mrt.MRT_COMMON_HEADER_LEN)
-		if _, err := file.Read(buf); err == io.EOF {
+		if _, err := raw.Read(buf); err == io.EOF {
 			return nil
 		} else if err != nil {
-			log.Fatalf("failed to read: %s", err)
+			return fmt.Errorf("failed to read: %s", err)
 		}
 		h := &mrt.MRTHeader{}
 		if err := h.DecodeFromBytes(buf); err != nil {
-			log.Fatalf("failed to parse")
+			return errors.New("failed to parse")
 		}
 		buf = make([]byte, h.Len)
-		if _, err := file.Read(buf); err != nil {
-			log.Fatalf("failed to read")
+		if _, err := raw.Read(buf); err != nil {
+			return errors.New("failed to read")
 		}
 		if msg, err := mrt.ParseMRTBody(h, buf); err != nil {
-			log.Fatalf("failed to parse: %s", err)
+			return fmt.Errorf("failed to parse: %s", err)
 		} else {
 			cb(msg)
 		}
@@ -166,30 +161,30 @@ type RIBEntry struct {
 	Attributes     Attributes `json:"attributes"`
 }
 
-func MrtPathIterate(filename string, cb mrtPathCallback) error {
+func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 	var peers []*mrt.Peer
-	MrtRawIterate(filename, func(msg *mrt.MRTMessage) {
+	MrtRawIterate(raw, func(msg *mrt.MRTMessage) error {
 		if msg.Header.Type != mrt.TABLE_DUMPv2 {
-			log.Fatal("MRT file is not a TABLE_DUMPv2")
+			return errors.New("MRT file is not a TABLE_DUMPv2")
 		}
 		subType := mrt.MRTSubTypeTableDumpv2(msg.Header.SubType)
 		if subType == mrt.PEER_INDEX_TABLE {
 			peers = msg.Body.(*mrt.PeerIndexTable).Peers
-			return
+			return nil
 		}
 		if subType == mrt.GEO_PEER_TABLE {
-			return
+			return nil
 		}
 		// we should have seen a peers table at this point
 		// we need it to output any RIB entries
 		if peers == nil {
-			log.Fatalf("not found PEER_INDEX_TABLE")
+			return errors.New("not found PEER_INDEX_TABLE")
 		}
 		rib := msg.Body.(*mrt.Rib)
 		//nlri := rib.Prefix
 		for _, e := range rib.Entries {
 			if len(peers) < int(e.PeerIndex) {
-				log.Fatalf("invalid peer index: %d (PEER_INDEX_TABLE has only %d peers)\n",
+				return fmt.Errorf("invalid peer index: %d (PEER_INDEX_TABLE has only %d peers)\n",
 					e.PeerIndex, len(peers))
 			}
 			// create reasonable output
@@ -215,7 +210,7 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 						if p, ok := param.(*bgp.As4PathParam); ok {
 							out.Attributes.ASPath = p.AS
 						} else {
-							log.Fatal("unknown AS path type")
+							return errors.New("unknown AS path type")
 						}
 					}
 				} else if nh, ok := a.(*bgp.PathAttributeNextHop); ok {
@@ -243,8 +238,9 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 				} else if orgId, ok := a.(*bgp.PathAttributeOriginatorId); ok {
 					out.Attributes.OriginatorId = orgId.Value
 				} else if origin, ok := a.(*bgp.PathAttributeOrigin); ok {
+					v := uint8(origin.Value)
 					var typ string
-					switch origin.Value {
+					switch v {
 					case bgp.BGP_ORIGIN_ATTR_TYPE_IGP:
 						typ = "igp"
 					case bgp.BGP_ORIGIN_ATTR_TYPE_EGP:
@@ -279,11 +275,12 @@ func MrtPathIterate(filename string, cb mrtPathCallback) error {
 					//	fmt.Println(mprnlri)
 					//} else if palp, ok := a.(*bgp.NewPathAttributeMpUnreachNLRI); ok {
 				} else {
-					log.Fatal("unsupported attribute type: ", a.GetType())
+					return fmt.Errorf("unsupported attribute type: ", a.GetType())
 				}
 			}
 			cb(&out)
 		}
+		return nil
 	})
 	return nil
 }
