@@ -100,6 +100,10 @@ func (a *GeoIP2AnnotatorFactory) MakeAnnotator(i int) *GeoIP2Annotator {
 }
 
 func (a *GeoIP2AnnotatorFactory) Initialize(conf *GlobalConf) error {
+	if conf.GeoIP2Conf.Path == "" {
+		log.Fatal("no GeoIP2 database provided")
+	}
+	log.Info("will add geoip2 using ", conf.GeoIP2Conf.Path)
 	if conf.GeoIP2Conf.RawInclude == "*" {
 		log.Debug("will include all geoip fields")
 		a.IncludeCity = true

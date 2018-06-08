@@ -136,6 +136,9 @@ func DoAnnotation(conf *GlobalConf) {
 
 	//startTime := time.Now().Format(time.RFC3339)
 	go AnnotateRead(conf, conf.InputFilePath, inChan)
+	//for module in
+
+
 	go AnnotateWrite(conf.OutputFilePath, outChan, &outputWG)
 
 	var annotateWG sync.WaitGroup

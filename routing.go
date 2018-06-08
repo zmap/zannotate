@@ -17,6 +17,9 @@ package zannotate
 import (
 	"os"
 	"net"
+	"errors"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/zmap/zannotate/zrouting"
 )
 
@@ -30,7 +33,6 @@ type RoutingConf struct {
 type RoutingAnnotatorFactory struct {
 	rlt *zrouting.RoutingLookupTree
 }
-
 
 type RoutingAnnotator struct {
 	Factory *RoutingAnnotatorFactory
@@ -49,6 +51,11 @@ func (a *RoutingAnnotatorFactory) MakeAnnotator(i int) *RoutingAnnotator {
 }
 
 func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
+	if conf.RoutingConf.RoutingTablePath == "" {
+		return errors.New("no routing file (MRT TABLE_DUMPv2) provided")
+	}
+	log.Info("will add routing using ", conf.RoutingConf.RoutingTablePath)
+
 	// Routing Lookup Trees are thread-safe
 	a.rlt = new(zrouting.RoutingLookupTree)
 	f, err := os.Open(conf.RoutingConf.RoutingTablePath)

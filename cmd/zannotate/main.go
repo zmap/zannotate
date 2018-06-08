@@ -33,7 +33,6 @@ func main() {
 		"where should JSON metadata be saved")
 	flags.StringVar(&conf.LogFilePath, "log-file", "", "where should JSON logs be saved")
 	flags.IntVar(&conf.Verbosity, "verbosity", 3, "log verbosity: 1 (lowest)--5 (highest)")
-	flags.IntVar(&conf.Threads, "threads", 5, "how many processing threads to use")
 	// json annotation configuration
 	flags.StringVar(&conf.JSONIPFieldName, "json-ip-field", "ip", "key in JSON that contains IP address")
 	flags.StringVar(&conf.JSONAnnotationFieldName, "json-annotation-field", "zannotate", "key that metadata is injected at")
@@ -48,11 +47,17 @@ func main() {
 		"how to open database: mmap or memory")
 	flags.StringVar(&conf.GeoIP2Conf.RawInclude, "geoip2-fields", "*",
 		"city, continent, country, location, postal, registered_country, subdivisions, traits")
+	flags.IntVar(&conf.GeoIP2Conf.Threads, "geoip-threads", 5, "how many geoIP processing threads to use")
 	// Routing Table AS Data
 	flags.BoolVar(&conf.Routing, "routing", false, "routing")
 	flags.StringVar(&conf.RoutingConf.RoutingTablePath, "mrt-file", "",
 		"path to MRT TABLE_DUMPv2 file")
 	flags.StringVar(&conf.RoutingConf.ASNamesPath, "as-names", "", "path to as names file")
+	flags.IntVar(&conf.RoutingConf.Threads, "routing-threads", 5, "how many routing processing threads to use")
+	// Reverse DNS Lookup
+	flags.BoolVar(&conf.ReverseDNS, "reverse-dns", false, "reverse dns lookup")
+	flags.StringVar(&conf.ReverseDNSConf.Resolvers, "dns-servers", "",
+		"list of DNS servers to use for DNS lookups")
 
 	flags.Parse(os.Args[1:])
 	if conf.LogFilePath != "" {
@@ -83,22 +88,6 @@ func main() {
 	}
 	if conf.InputFileType != "ips" && conf.InputFileType != "json" {
 		log.Fatal("invalid input file type")
-	}
-	// Check GeoIP2 sanity
-	if conf.GeoIP2 == true {
-		if conf.GeoIP2Conf.Path == "" {
-			log.Fatal("no GeoIP2 database provided")
-		}
-		zannotate.GeoIP2ParseRawIncludeString(&conf.GeoIP2Conf)
-		log.Info("will add geoip2 using ", conf.GeoIP2Conf.Path)
-	}
-	if conf.Routing == true {
-		if conf.RoutingConf.RoutingTablePath == "" {
-			log.Fatal("no routing file (MRT TABLE_DUMPv2) provided")
-		}
-		log.Info("will add routing using ", conf.RoutingConf.RoutingTablePath)
-		zannotate.BuildTree(&conf.RoutingConf)
-		log.Debug("finished building routing table tree")
 	}
 	zannotate.DoAnnotation(&conf)
 }
