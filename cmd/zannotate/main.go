@@ -34,6 +34,10 @@ func main() {
 	flags.StringVar(&conf.LogFilePath, "log-file", "", "where should JSON logs be saved")
 	flags.IntVar(&conf.Verbosity, "verbosity", 3, "log verbosity: 1 (lowest)--5 (highest)")
 	flags.IntVar(&conf.Threads, "threads", 5, "how many processing threads to use")
+	// json annotation configuration
+	flags.StringVar(&conf.JSONIPFieldName, "json-ip-field", "ip", "key in JSON that contains IP address")
+	flags.StringVar(&conf.JSONAnnotationFieldName, "json-annotation-field", "zannotate", "key that metadata is injected at")
+
 	// MaxMind GeoIP2
 	flags.BoolVar(&conf.GeoIP2, "geoip2", false, "geolocate")
 	flags.StringVar(&conf.GeoIP2Conf.Path, "geoip2-database", "",
@@ -49,9 +53,6 @@ func main() {
 	flags.StringVar(&conf.RoutingConf.RoutingTablePath, "mrt-file", "",
 		"path to MRT TABLE_DUMPv2 file")
 	flags.StringVar(&conf.RoutingConf.ASNamesPath, "as-names", "", "path to as names file")
-	// json annotation configuration
-	flags.StringVar(&conf.JSONIPFieldName, "json-ip-field", "ip", "key in JSON that contains IP address")
-	flags.StringVar(&conf.JSONAnnotationFieldName, "json-annotation-field", "zannotate", "key that metadata is injeted at")
 
 	flags.Parse(os.Args[1:])
 	if conf.LogFilePath != "" {
