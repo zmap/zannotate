@@ -68,8 +68,12 @@ func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
 
 // Routing Annotator (Per-Worker)
 
-func (a *RoutingAnnotator) Initialize(f *RoutingAnnotatorFactory) error {
+func (a *RoutingAnnotator) Initialize() error {
 	return nil
+}
+
+func (a *RoutingAnnotator) GetFieldName() string {
+	return "routing"
 }
 
 func (a *RoutingAnnotator) Annotate(ip net.IP) interface{} {
@@ -79,3 +83,4 @@ func (a *RoutingAnnotator) Annotate(ip net.IP) interface{} {
 	}
 	return ret
 }
+

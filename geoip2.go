@@ -145,8 +145,8 @@ func (a *GeoIP2AnnotatorFactory) Initialize(conf *GlobalConf) error {
 
 // GeoIP2 Annotator (Per-Worker)
 
-func (a *GeoIP2Annotator) Initialize(f *GeoIP2AnnotatorFactory) error {
-	if f.Conf.GeoIP2Conf.Mode == "memory" {
+func (a *GeoIP2Annotator) Initialize() error {
+	if a.Factory.Conf.GeoIP2Conf.Mode == "memory" {
 		bytes, err := ioutil.ReadFile(f.Conf.GeoIP2Conf.Path)
 		if err != nil {
 			log.Fatal("unable to open maxmind geoIP2 database (memory): ", err)
@@ -156,7 +156,7 @@ func (a *GeoIP2Annotator) Initialize(f *GeoIP2AnnotatorFactory) error {
 			log.Fatal("unable to parse maxmind geoIP2 database: ", err)
 		}
 		a.Reader = db
-	} else if f.Conf.GeoIP2Conf.Mode == "mmap" {
+	} else if a.Factory.Conf.GeoIP2Conf.Mode == "mmap" {
 		db, err := geoip2.Open(f.Conf.GeoIP2Conf.Path)
 		if err != nil {
 			log.Fatal("unable to load maxmind geoIP2 database: ", err)
@@ -228,6 +228,11 @@ func (a *GeoIP2Annotator) GeoIP2FillStruct(in *geoip2.City) *GeoIP2Output {
 		out.RepresentedCountry.Code = in.RepresentedCountry.IsoCode
 	}
 	return &out
+}
+
+
+func (a *GeoIP2Annotator) GetFieldName() string {
+	return "geoip2"
 }
 
 func (a *GeoIP2Annotator) Annotate(ip net.IP) interface{} {

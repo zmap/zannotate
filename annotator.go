@@ -18,8 +18,9 @@ import "net"
 
 
 type Annotator interface {
-	Initialize(f *AnnotatorFactory) error
+	Initialize() error
 	Annotate(ip net.IP) interface{}
+	GetFieldName() string
 	Close(c GlobalConf) error
 }
 

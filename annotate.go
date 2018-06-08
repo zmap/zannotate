@@ -100,46 +100,17 @@ func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
 	log.Debug("write thread finished")
 }
 
-//func AnnotateWorker(conf *GlobalConf, in <-chan string, out chan<- string,
-//	wg *sync.WaitGroup, i int) {
-//	log.Debug("annotate worker ", i, " started")
-//	log.Debug("annotate worker ", i, " initialization finished")
-//	for line := range in {
-//		// all lookup operations performed off of IP, which we parse into
-//		// depending on the configuration type
-//		var ip net.IP
-//		// JSON use only, but must be accessible throughout the loop
-//		var res Result
-//		if conf.GeoIP2 == true {
-//			record, err := geoIP2db.City(ip)
-//			if err != nil {
-//				log.Fatal(err)
-//			}
-//			res.GeoIP2 = GeoIP2FillStruct(record, &conf.GeoIP2Conf)
-//		}
-//		if conf.Routing {
-//			res.Routing = RoutingFillStruct(ip, &conf.RoutingConf)
-//		}
-//		if conf.InputFileType == "json" {
-//			jsonMap[conf.JSONAnnotationFieldName] = res
-//			jsonRes, err := json.Marshal(jsonMap)
-//			if err != nil {
-//				log.Fatal("Unable to marshal JSON result", err)
-//			}
-//			out <- string(jsonRes)
-//
-//		} else {
-//			res.Ip = ip.String()
-//			jsonRes, err := json.Marshal(res)
-//			if err != nil {
-//				log.Fatal("Unable to marshal JSON result", err)
-//			}
-//			out <- string(jsonRes)
-//		}
-//	}
-//	wg.Done()
-//	log.Debug("annotate worker ", i, " finished")
-//}
+func AnnotateWorker(a *Annotator, r inProcessIP, wg *sync.WaitGroup, i int) {
+	name := a.GetFieldName()
+	log.Debug("annotate worker (", name, ") ", i, " started")
+	if err := a.Initialize(); err != nil {
+		log.Fatal("error initializing annotate worker: ", err)
+	}
+	for inProcess := range in {
+		inProcess.Out[name] = a.Annotate(inProcess.Ip)
+	}
+	wg.Done()
+}
 
 func DoAnnotation(conf *GlobalConf) {
 	outChan := make(chan string)
