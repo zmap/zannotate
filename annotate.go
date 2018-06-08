@@ -1,5 +1,19 @@
 package zannotate
 
+/*
+ * ZAnnotate Copyright 2018 Regents of the University of Michigan
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 import (
 	"bufio"
 	"encoding/json"
@@ -55,7 +69,8 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- inProcessIP) {
 		log.Debug("reading input from stdin")
 		f = os.Stdin
 	} else {
-		f, err := os.Open(path)
+		var err error
+		f, err = os.Open(path)
 		if err != nil {
 			log.Fatal("unable to open input file:", err.Error())
 		}
@@ -100,13 +115,13 @@ func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
 	log.Debug("write thread finished")
 }
 
-func AnnotateWorker(a *Annotator, r inProcessIP, wg *sync.WaitGroup, i int) {
+func AnnotateWorker(a Annotator, r <- chan inProcessIP, wg *sync.WaitGroup, i int) {
 	name := a.GetFieldName()
 	log.Debug("annotate worker (", name, ") ", i, " started")
 	if err := a.Initialize(); err != nil {
 		log.Fatal("error initializing annotate worker: ", err)
 	}
-	for inProcess := range in {
+	for inProcess := range r {
 		inProcess.Out[name] = a.Annotate(inProcess.Ip)
 	}
 	wg.Done()
@@ -124,10 +139,10 @@ func DoAnnotation(conf *GlobalConf) {
 	go AnnotateWrite(conf.OutputFilePath, outChan, &outputWG)
 
 	var annotateWG sync.WaitGroup
-	annotateWG.Add(conf.Threads)
-	for i := 0; i < conf.Threads; i++ {
-		go AnnotateWorker(conf, inChan, outChan, &annotateWG, i)
-	}
+	//annotateWG.Add(conf.Threads)
+	//for i := 0; i < conf.Threads; i++ {
+	//	go AnnotateWorker(conf, inChan, outChan, &annotateWG, i)
+	//}
 	annotateWG.Wait()
 	close(outChan)
 	outputWG.Wait()

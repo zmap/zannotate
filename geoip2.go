@@ -147,7 +147,7 @@ func (a *GeoIP2AnnotatorFactory) Initialize(conf *GlobalConf) error {
 
 func (a *GeoIP2Annotator) Initialize() error {
 	if a.Factory.Conf.GeoIP2Conf.Mode == "memory" {
-		bytes, err := ioutil.ReadFile(f.Conf.GeoIP2Conf.Path)
+		bytes, err := ioutil.ReadFile(a.Factory.Conf.GeoIP2Conf.Path)
 		if err != nil {
 			log.Fatal("unable to open maxmind geoIP2 database (memory): ", err)
 		}
@@ -157,7 +157,7 @@ func (a *GeoIP2Annotator) Initialize() error {
 		}
 		a.Reader = db
 	} else if a.Factory.Conf.GeoIP2Conf.Mode == "mmap" {
-		db, err := geoip2.Open(f.Conf.GeoIP2Conf.Path)
+		db, err := geoip2.Open(a.Factory.Conf.GeoIP2Conf.Path)
 		if err != nil {
 			log.Fatal("unable to load maxmind geoIP2 database: ", err)
 		}
