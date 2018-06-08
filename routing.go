@@ -55,6 +55,13 @@ func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
 	if err != nil {
 		return err
 	}
+	if conf.RoutingConf.ASNamesPath != "" {
+		f, err := os.Open(conf.RoutingConf.ASNamesPath)
+		if err != nil {
+			return err
+		}
+		a.rlt.PopulateASnames(f)
+	}
 	a.rlt.PopulateFromMRT(f)
 	return nil
 }
