@@ -25,6 +25,7 @@ import (
 )
 
 type GeoIP2Conf struct {
+	BasePluginConf
 	Path       string
 	Mode       string
 	Language   string

@@ -25,6 +25,7 @@ import (
 
 
 type RoutingConf struct {
+	BasePluginConf
 	RoutingTablePath string
 	ASNamesPath      string
 	ASDataPath       string

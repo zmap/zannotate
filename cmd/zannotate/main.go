@@ -38,7 +38,7 @@ func main() {
 	flags.StringVar(&conf.JSONAnnotationFieldName, "json-annotation-field", "zannotate", "key that metadata is injected at")
 
 	// MaxMind GeoIP2
-	flags.BoolVar(&conf.GeoIP2, "geoip2", false, "geolocate")
+	flags.BoolVar(&conf.GeoIP2Conf.Enabled, "geoip2", false, "geolocate")
 	flags.StringVar(&conf.GeoIP2Conf.Path, "geoip2-database", "",
 		"path to MaxMind GeoIP2 database")
 	flags.StringVar(&conf.GeoIP2Conf.Mode, "geoip2-mode", "mmap",
@@ -48,16 +48,17 @@ func main() {
 	flags.StringVar(&conf.GeoIP2Conf.RawInclude, "geoip2-fields", "*",
 		"city, continent, country, location, postal, registered_country, subdivisions, traits")
 	flags.IntVar(&conf.GeoIP2Conf.Threads, "geoip-threads", 5, "how many geoIP processing threads to use")
+
 	// Routing Table AS Data
-	flags.BoolVar(&conf.Routing, "routing", false, "routing")
-	flags.StringVar(&conf.RoutingConf.RoutingTablePath, "mrt-file", "",
-		"path to MRT TABLE_DUMPv2 file")
+	flags.BoolVar(&conf.RoutingConf.Enabled, "routing", false, "routing")
+	flags.StringVar(&conf.RoutingConf.RoutingTablePath, "mrt-file", "", "path to MRT TABLE_DUMPv2 file")
 	flags.StringVar(&conf.RoutingConf.ASNamesPath, "as-names", "", "path to as names file")
 	flags.IntVar(&conf.RoutingConf.Threads, "routing-threads", 5, "how many routing processing threads to use")
+
 	// Reverse DNS Lookup
-	flags.BoolVar(&conf.ReverseDNS, "reverse-dns", false, "reverse dns lookup")
-	flags.StringVar(&conf.ReverseDNSConf.Resolvers, "dns-servers", "",
-		"list of DNS servers to use for DNS lookups")
+	flags.BoolVar(&conf.ReverseDNSConf.Enabled, "reverse-dns", false, "reverse dns lookup")
+	flags.StringVar(&conf.ReverseDNSConf.RawResolvers, "dns-servers", "", "list of DNS servers to use for DNS lookups")
+	flags.IntVar(&conf.ReverseDNSConf.Threads, "rdns-threads", 100, "how many reverse dns threads")
 
 	flags.Parse(os.Args[1:])
 	if conf.LogFilePath != "" {

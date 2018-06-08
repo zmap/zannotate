@@ -25,9 +25,12 @@ type GlobalConf struct {
 	JSONIPFieldName         string
 	JSONAnnotationFieldName string
 
-	GeoIP2     bool
 	GeoIP2Conf GeoIP2Conf
-
-	Routing     bool
 	RoutingConf RoutingConf
+	RDNSConf RDNSConf
+}
+
+type BasePluginConf struct {
+	Threads int
+	Enabled bool
 }
