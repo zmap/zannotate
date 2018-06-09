@@ -18,6 +18,7 @@ import (
 	"os"
 	"net"
 	"errors"
+	"flag"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zmap/zannotate/zrouting"
@@ -48,23 +49,23 @@ func (a *RoutingAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 		"how many routing processing threads to use")
 }
 
-func (a *RoutingAnnotatorFactory) IsEnabled() {
+func (a *RoutingAnnotatorFactory) IsEnabled() bool {
 	return a.Enabled
 }
 
 func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
-	if conf.RoutingConf.RoutingTablePath == "" {
+	if a.RoutingTablePath == "" {
 		return errors.New("no routing file (MRT TABLE_DUMPv2) provided")
 	}
-	log.Info("will add routing using ", conf.RoutingConf.RoutingTablePath)
+	log.Info("will add routing using ", a.RoutingTablePath)
 	// Routing Lookup Trees are thread-safe
 	a.rlt = new(zrouting.RoutingLookupTree)
-	f, err := os.Open(conf.RoutingConf.RoutingTablePath)
+	f, err := os.Open(a.RoutingTablePath)
 	if err != nil {
 		return err
 	}
-	if conf.RoutingConf.ASNamesPath != "" {
-		f, err := os.Open(conf.RoutingConf.ASNamesPath)
+	if a.ASNamesPath != "" {
+		f, err := os.Open(a.ASNamesPath)
 		if err != nil {
 			return err
 		}

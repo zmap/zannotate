@@ -36,25 +36,6 @@ func main() {
 	// json annotation configuration
 	flags.StringVar(&conf.JSONIPFieldName, "json-ip-field", "ip", "key in JSON that contains IP address")
 	flags.StringVar(&conf.JSONAnnotationFieldName, "json-annotation-field", "zannotate", "key that metadata is injected at")
-
-	// MaxMind GeoIP2
-	flags.BoolVar(&conf.GeoIP2Conf.Enabled, "geoip2", false, "geolocate")
-	flags.StringVar(&conf.GeoIP2Conf.Path, "geoip2-database", "",
-		"path to MaxMind GeoIP2 database")
-	flags.StringVar(&conf.GeoIP2Conf.Mode, "geoip2-mode", "mmap",
-		"how to open database: mmap or memory")
-	flags.StringVar(&conf.GeoIP2Conf.Language, "geoip2-language", "en",
-		"how to open database: mmap or memory")
-	flags.StringVar(&conf.GeoIP2Conf.RawInclude, "geoip2-fields", "*",
-		"city, continent, country, location, postal, registered_country, subdivisions, traits")
-	flags.IntVar(&conf.GeoIP2Conf.Threads, "geoip-threads", 5, "how many geoIP processing threads to use")
-
-	// Routing Table AS Data
-	// Reverse DNS Lookup
-	flags.BoolVar(&conf.ReverseDNSConf.Enabled, "reverse-dns", false, "reverse dns lookup")
-	flags.StringVar(&conf.ReverseDNSConf.RawResolvers, "dns-servers", "", "list of DNS servers to use for DNS lookups")
-	flags.IntVar(&conf.ReverseDNSConf.Threads, "rdns-threads", 100, "how many reverse dns threads")
-
 	flags.Parse(os.Args[1:])
 	if conf.LogFilePath != "" {
 		f, err := os.OpenFile(conf.LogFilePath, os.O_WRONLY|os.O_CREATE, 0666)

@@ -15,15 +15,14 @@
 package zannotate
 
 import (
+	"flag"
 	"net"
 )
 
-type RDNSConf struct {
+type RDNSAnnotatorFactory struct {
 	BasePluginConf
 	RawResolvers string
-}
 
-type RDNSAnnotatorFactory struct {
 }
 
 type RDNSAnnotator struct {
@@ -43,6 +42,14 @@ func (a *RDNSAnnotatorFactory) MakeAnnotator(i int) *RDNSAnnotator {
 func (a *RDNSAnnotatorFactory) Initialize(conf *GlobalConf) error {
 	return nil
 }
+
+func (a *RDNSAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
+	// Reverse DNS Lookup
+	flags.BoolVar(&a.Enabled, "reverse-dns", false, "reverse dns lookup")
+	flags.StringVar(&a.RawResolvers, "dns-servers", "", "list of DNS servers to use for DNS lookups")
+	flags.IntVar(&a.Threads, "rdns-threads", 100, "how many reverse dns threads")
+}
+
 
 // RDNS Annotator (Per-Worker)
 

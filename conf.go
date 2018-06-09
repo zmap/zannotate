@@ -14,7 +14,10 @@
 
 package zannotate
 
-import "net"
+import (
+	"net"
+	"flag"
+)
 
 // interfaces for annotation plugins
 
@@ -50,10 +53,6 @@ type GlobalConf struct {
 	Threads                 int
 	JSONIPFieldName         string
 	JSONAnnotationFieldName string
-
-	GeoIP2Conf GeoIP2Conf
-	RoutingConf RoutingConf
-	RDNSConf RDNSConf
 }
 
 var annotators []AnnotatorFactory

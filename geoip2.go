@@ -15,6 +15,7 @@
 package zannotate
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -23,14 +24,6 @@ import (
 	"github.com/oschwald/geoip2-golang"
 	log "github.com/sirupsen/logrus"
 )
-
-type GeoIP2Conf struct {
-	BasePluginConf
-	Path       string
-	Mode       string
-	Language   string
-	RawInclude string
-}
 
 type GeoIP2City struct {
 	Name      string `json:"name"`
@@ -72,6 +65,12 @@ type GeoIP2Output struct {
 }
 
 type GeoIP2AnnotatorFactory struct {
+	BasePluginConf
+	Path       string
+	Mode       string
+	Language   string
+	RawInclude string
+
 	Conf   *GlobalConf
 	// what data to include
 	IncludeCity               bool
@@ -92,8 +91,24 @@ type GeoIP2Annotator struct {
 }
 
 // GeoIP2 Annotator Factory (Global)
+func (a *GeoIP2AnnotatorFactory) AddFlags(flags *flag.FlagSet) {
+	flags.BoolVar(&a.Enabled, "geoip2", false, "geolocate")
+	flags.StringVar(&a.Path, "geoip2-database", "",
+		"path to MaxMind GeoIP2 database")
+	flags.StringVar(&a.Mode, "geoip2-mode", "mmap",
+		"how to open database: mmap or memory")
+	flags.StringVar(&a.Language, "geoip2-language", "en",
+		"how to open database: mmap or memory")
+	flags.StringVar(&a.RawInclude, "geoip2-fields", "*",
+		"city, continent, country, location, postal, registered_country, subdivisions, traits")
+	flags.IntVar(&a.Threads, "geoip-threads", 5, "how many geoIP processing threads to use")
+}
 
-func (a *GeoIP2AnnotatorFactory) MakeAnnotator(i int) *GeoIP2Annotator {
+func (a *GeoIP2AnnotatorFactory) IsEnabled() bool {
+	return a.Enabled
+}
+
+func (a *GeoIP2AnnotatorFactory) MakeAnnotator(i int) Annotator {
 	var v GeoIP2Annotator
 	v.Factory = a
 	v.Id = i
@@ -101,11 +116,11 @@ func (a *GeoIP2AnnotatorFactory) MakeAnnotator(i int) *GeoIP2Annotator {
 }
 
 func (a *GeoIP2AnnotatorFactory) Initialize(conf *GlobalConf) error {
-	if conf.GeoIP2Conf.Path == "" {
+	if a.Path == "" {
 		log.Fatal("no GeoIP2 database provided")
 	}
-	log.Info("will add geoip2 using ", conf.GeoIP2Conf.Path)
-	if conf.GeoIP2Conf.RawInclude == "*" {
+	log.Info("will add geoip2 using ", a.Path)
+	if a.RawInclude == "*" {
 		log.Debug("will include all geoip fields")
 		a.IncludeCity = true
 		a.IncludeCountry = true
@@ -117,8 +132,8 @@ func (a *GeoIP2AnnotatorFactory) Initialize(conf *GlobalConf) error {
 		a.IncludeRegisteredCountry = true
 		a.IncludeRepresentedCountry = true
 	} else {
-		log.Debug("will include GeoIP fields: ", conf.GeoIP2Conf.RawInclude)
-		for _, s := range strings.Split(conf.GeoIP2Conf.RawInclude, ",") {
+		log.Debug("will include GeoIP fields: ", a.RawInclude)
+		for _, s := range strings.Split(a.RawInclude, ",") {
 			ps := strings.Trim(s, " ")
 			switch ps {
 			case "city":
@@ -147,12 +162,15 @@ func (a *GeoIP2AnnotatorFactory) Initialize(conf *GlobalConf) error {
 	return nil
 }
 
+func (a *GeoIP2AnnotatorFactory) Close() error {
+	return nil
+}
 
 // GeoIP2 Annotator (Per-Worker)
 
 func (a *GeoIP2Annotator) Initialize() error {
-	if a.Factory.Conf.GeoIP2Conf.Mode == "memory" {
-		bytes, err := ioutil.ReadFile(a.Factory.Conf.GeoIP2Conf.Path)
+	if a.Factory.Mode == "memory" {
+		bytes, err := ioutil.ReadFile(a.Factory.Path)
 		if err != nil {
 			log.Fatal("unable to open maxmind geoIP2 database (memory): ", err)
 		}
@@ -161,8 +179,8 @@ func (a *GeoIP2Annotator) Initialize() error {
 			log.Fatal("unable to parse maxmind geoIP2 database: ", err)
 		}
 		a.Reader = db
-	} else if a.Factory.Conf.GeoIP2Conf.Mode == "mmap" {
-		db, err := geoip2.Open(a.Factory.Conf.GeoIP2Conf.Path)
+	} else if a.Factory.Mode == "mmap" {
+		db, err := geoip2.Open(a.Factory.Path)
 		if err != nil {
 			log.Fatal("unable to load maxmind geoIP2 database: ", err)
 		}
@@ -176,7 +194,7 @@ func (a *GeoIP2Annotator) Initialize() error {
 
 
 func (a *GeoIP2Annotator) GeoIP2FillStruct(in *geoip2.City) *GeoIP2Output {
-	language := a.Factory.Conf.GeoIP2Conf.Language
+	language := a.Factory.Language
 	var out GeoIP2Output
 	if a.Factory.IncludeCity == true {
 		var city GeoIP2City
@@ -246,4 +264,15 @@ func (a *GeoIP2Annotator) Annotate(ip net.IP) interface{} {
 		log.Fatal(err)
 	}
 	return a.GeoIP2FillStruct(record)
+}
+
+func (a *GeoIP2Annotator) Close() error {
+	return nil
+}
+
+
+
+func init() {
+	f := new(GeoIP2AnnotatorFactory)
+	RegisterAnnotator(f)
 }
