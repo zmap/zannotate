@@ -20,7 +20,6 @@ import (
 	"net"
 
 	"github.com/osrg/gobgp/packet/bgp"
-	log "github.com/sirupsen/logrus"
 	"github.com/zmap/go-iptree/iptree"
 	"github.com/zmap/zannotate/zmrt"
 )
@@ -53,9 +52,6 @@ type RoutingLookupTree struct {
 	IPTree  *iptree.IPTree
 }
 
-//	RoutingTablePath string
-//	ASNamesPath      string
-
 func (t *RoutingLookupTree) PopulateFromMRT(raw io.Reader) {
 	t.IPTree = iptree.New()
 	zmrt.MrtPathIterate(raw, func(e *zmrt.RIBEntry) {
@@ -85,17 +81,18 @@ func (t *RoutingLookupTree) SetASData(asn uint32, m interface{}) {
 	t.ASData[asn] = m
 }
 
-func (t *RoutingLookupTree) PopulateASnames(raw io.Reader) {
+func (t *RoutingLookupTree) PopulateASnames(raw io.Reader) error {
 	d := json.NewDecoder(raw)
 	for {
 		var m ASNameNode
 		if err := d.Decode(&m); err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatalf("%s", err)
+			return err
 		}
 		t.SetASName(m.ASN, m)
 	}
+	return nil
 }
 
 func (t *RoutingLookupTree) Get(ip net.IP) (*RoutingOutput, error) {
