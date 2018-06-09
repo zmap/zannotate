@@ -1,5 +1,5 @@
 /*
- * ZAnnotate Copyright 2017 Regents of the University of Michigan
+ * ZAnnotate Copyright 2018 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -55,10 +55,8 @@ type GlobalConf struct {
 	JSONAnnotationFieldName string
 }
 
-var annotators []AnnotatorFactory
+var Annotators []AnnotatorFactory
 
 func RegisterAnnotator(af AnnotatorFactory) {
-	annotators = append(annotators, af)
+	Annotators = append(Annotators, af)
 }
-
-//annotators := AnnotatorFactory[...]{RoutingAnnotatorFactory, GeoIP2AnnotatorFactory}
