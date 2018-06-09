@@ -62,7 +62,7 @@ func ipToInProcess(line string) inProcessIP {
 	return retv
 }
 
-func AnnotateRead(conf *GlobalConf, path string, in chan<- inProcessIP) {
+func AnnotateRead(conf *GlobalConf, path string, in chan<- string) {
 	log.Debug("read thread started")
 	var f *os.File
 	if path == "" || path == "-" {
@@ -80,12 +80,7 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- inProcessIP) {
 	line, err := r.ReadString('\n')
 	// read IPs out of JSON input
 	for err == nil {
-		l := strings.TrimSuffix(line, "\n")
-		if conf.InputFileType == "json" {
-			in <- jsonToInProcess(l, conf.JSONIPFieldName, conf.JSONAnnotationFieldName)
-		} else {
-			in <- ipToInProcess(l)
-		}
+		in <- line
 		line, err = r.ReadString('\n')
 	}
 	if err != nil && err != io.EOF {
@@ -93,6 +88,17 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- inProcessIP) {
 	}
 	close(in)
 	log.Debug("read thread finished")
+}
+
+func AnnotateInputDecode(conf *GlobalConf, out <-chan inProcessIP, in chan<- string) {
+	for line := range in {
+		l := strings.TrimSuffix(line, "\n")
+		if conf.InputFileType == "json" {
+			out <- jsonToInProcess(l, conf.JSONIPFieldName, conf.JSONAnnotationFieldName)
+		} else {
+			out <- ipToInProcess(l)
+		}
+	}
 }
 
 func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
@@ -115,37 +121,56 @@ func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
 	log.Debug("write thread finished")
 }
 
-func AnnotateWorker(a Annotator, r <- chan inProcessIP, wg *sync.WaitGroup, i int) {
+func AnnotateWorker(a Annotator, inChan <-chan inProcessIP, wg *sync.WaitGroup, i int) {
 	name := a.GetFieldName()
 	log.Debug("annotate worker (", name, ") ", i, " started")
 	if err := a.Initialize(); err != nil {
 		log.Fatal("error initializing annotate worker: ", err)
 	}
-	for inProcess := range r {
+	for inProcess := range inChan {
 		inProcess.Out[name] = a.Annotate(inProcess.Ip)
+		outChan <- inProcess
 	}
 	wg.Done()
 }
 
 func DoAnnotation(conf *GlobalConf) {
-	outChan := make(chan string)
-	inChan := make(chan inProcessIP)
+	// several types of channels/subprocesses
+	// [read from file](1) -> [decode input data](n,d=3) -> [annotator 1](n)
+	//    -> [annotator 2](n) -> ... -> [annotator n](n) -> [encode output data](n,d=3)
+	//    -> [write to file](1)
 
-	var outputWG sync.WaitGroup
-	outputWG.Add(1)
-
-	//startTime := time.Now().Format(time.RFC3339)
-	go AnnotateRead(conf, conf.InputFilePath, inChan)
-	//for module in
-
-
-	go AnnotateWrite(conf.OutputFilePath, outChan, &outputWG)
-
+	inRaw := make(chan string)
+	inDecoded := make(chan inProcessIP)
+	// read input file
+	go AnnotateRead(conf, inRaw)
+	// decode input data
+	var decodeWG sync.WaitGroup
+	for i := range conf.InputDecodeThreads {
+		go AnnotateInputDecode(conf, decodeWG, inRaw, inDecoded, i)
+		decodeWG.Add(1)
+	}
+	// spawn threads for each type of annotator
 	var annotateWG sync.WaitGroup
-	//annotateWG.Add(conf.Threads)
-	//for i := 0; i < conf.Threads; i++ {
-	//	go AnnotateWorker(conf, inChan, outChan, &annotateWG, i)
-	//}
+	lastChannel := inDecoded
+	nextChannel := make(chan inProcessIP)
+	for _, annotator := range Annotators {
+		if annotator.IsEnabled() {
+			for i := 1; i < annotator.GetThreads(); i++ {
+				go AnnotateWorker(annotator.MakeAnnotator(i), lastChannel, nextChannel, annotateWG, i)
+			}
+			lastChannel = nextChannel
+			nextChannel = make(chan inProcessIP)
+		}
+	}
+	// encode raw data
+	var encodeWG sync.WaitGroup
+	for i := 1; i <= conf.OutputEncodeThreads; i++ {
+		go AnnotateInputDecode(conf, encodeWG, lastChannel, encodedOut, i)
+		encodeWG.Add(1)
+	}
+	go AnnotateWrite(conf.OutputFilePath, encodedOut, &outputWG)
+
 	annotateWG.Wait()
 	close(outChan)
 	outputWG.Wait()

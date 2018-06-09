@@ -15,8 +15,8 @@
 package zannotate
 
 import (
-	"net"
 	"flag"
+	"net"
 )
 
 // interfaces for annotation plugins
@@ -53,6 +53,8 @@ type GlobalConf struct {
 	Threads                 int
 	JSONIPFieldName         string
 	JSONAnnotationFieldName string
+	InputDecodeThreads      int
+	OutputEncodeThreads     int
 }
 
 var Annotators []AnnotatorFactory

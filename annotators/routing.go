@@ -15,10 +15,10 @@
 package zannotate
 
 import (
-	"os"
-	"net"
 	"errors"
 	"flag"
+	"net"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zmap/zannotate/zrouting"
@@ -35,8 +35,8 @@ type RoutingAnnotatorFactory struct {
 
 type RoutingAnnotator struct {
 	Factory *RoutingAnnotatorFactory
-	rlt *zrouting.RoutingLookupTree
-	Id int
+	rlt     *zrouting.RoutingLookupTree
+	Id      int
 }
 
 // Routing Annotator Factory (Global)
