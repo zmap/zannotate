@@ -14,6 +14,32 @@
 
 package zannotate
 
+import "net"
+
+// interfaces for annotation plugins
+
+type Annotator interface {
+	Initialize() error
+	Annotate(ip net.IP) interface{}
+	GetFieldName() string
+	Close() error
+}
+
+type AnnotatorFactory interface {
+	Initialize(c *GlobalConf) error
+	AddFlags(flags *flag.FlagSet)
+	IsEnabled() bool
+	MakeAnnotator(i int) Annotator
+	Close() error
+}
+
+type BasePluginConf struct {
+	Threads int
+	Enabled bool
+}
+
+// global library configuration
+
 type GlobalConf struct {
 	InputFilePath           string
 	InputFileType           string
@@ -30,7 +56,10 @@ type GlobalConf struct {
 	RDNSConf RDNSConf
 }
 
-type BasePluginConf struct {
-	Threads int
-	Enabled bool
+var annotators []AnnotatorFactory
+
+func RegisterAnnotator(af AnnotatorFactory) {
+	annotators = append(annotators, af)
 }
+
+//annotators := AnnotatorFactory[...]{RoutingAnnotatorFactory, GeoIP2AnnotatorFactory}

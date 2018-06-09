@@ -23,15 +23,12 @@ import (
 	"github.com/zmap/zannotate/zrouting"
 )
 
-
-type RoutingConf struct {
+type RoutingAnnotatorFactory struct {
 	BasePluginConf
 	RoutingTablePath string
 	ASNamesPath      string
 	ASDataPath       string
-}
 
-type RoutingAnnotatorFactory struct {
 	rlt *zrouting.RoutingLookupTree
 }
 
@@ -42,13 +39,17 @@ type RoutingAnnotator struct {
 }
 
 // Routing Annotator Factory (Global)
+func (a *RoutingAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
+	flags.BoolVar(&a.Enabled, "routing", false, "routing")
+	flags.StringVar(&a.RoutingTablePath, "mrt-file", "",
+		"path to MRT TABLE_DUMPv2 file")
+	flags.StringVar(&a.ASNamesPath, "as-names", "", "path to as names file")
+	flags.IntVar(&a.Threads, "routing-threads", 5,
+		"how many routing processing threads to use")
+}
 
-func (a *RoutingAnnotatorFactory) MakeAnnotator(i int) *RoutingAnnotator {
-	var v RoutingAnnotator
-	v.Factory = a
-	v.rlt = a.rlt
-	v.Id = i
-	return &v
+func (a *RoutingAnnotatorFactory) IsEnabled() {
+	return a.Enabled
 }
 
 func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
@@ -56,7 +57,6 @@ func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
 		return errors.New("no routing file (MRT TABLE_DUMPv2) provided")
 	}
 	log.Info("will add routing using ", conf.RoutingConf.RoutingTablePath)
-
 	// Routing Lookup Trees are thread-safe
 	a.rlt = new(zrouting.RoutingLookupTree)
 	f, err := os.Open(conf.RoutingConf.RoutingTablePath)
@@ -71,6 +71,18 @@ func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
 		a.rlt.PopulateASnames(f)
 	}
 	a.rlt.PopulateFromMRT(f)
+	return nil
+}
+
+func (a *RoutingAnnotatorFactory) MakeAnnotator(i int) Annotator {
+	var v RoutingAnnotator
+	v.Factory = a
+	v.rlt = a.rlt
+	v.Id = i
+	return &v
+}
+
+func (a *RoutingAnnotatorFactory) Close() error {
 	return nil
 }
 
@@ -92,3 +104,11 @@ func (a *RoutingAnnotator) Annotate(ip net.IP) interface{} {
 	return ret
 }
 
+func (a *RoutingAnnotator) Close() error {
+	return nil
+}
+
+func init() {
+	s := new(RoutingAnnotatorFactory)
+	RegisterAnnotator(s)
+}

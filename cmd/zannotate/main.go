@@ -50,11 +50,6 @@ func main() {
 	flags.IntVar(&conf.GeoIP2Conf.Threads, "geoip-threads", 5, "how many geoIP processing threads to use")
 
 	// Routing Table AS Data
-	flags.BoolVar(&conf.RoutingConf.Enabled, "routing", false, "routing")
-	flags.StringVar(&conf.RoutingConf.RoutingTablePath, "mrt-file", "", "path to MRT TABLE_DUMPv2 file")
-	flags.StringVar(&conf.RoutingConf.ASNamesPath, "as-names", "", "path to as names file")
-	flags.IntVar(&conf.RoutingConf.Threads, "routing-threads", 5, "how many routing processing threads to use")
-
 	// Reverse DNS Lookup
 	flags.BoolVar(&conf.ReverseDNSConf.Enabled, "reverse-dns", false, "reverse dns lookup")
 	flags.StringVar(&conf.ReverseDNSConf.RawResolvers, "dns-servers", "", "list of DNS servers to use for DNS lookups")
