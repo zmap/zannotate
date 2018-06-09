@@ -36,6 +36,11 @@ func main() {
 	// json annotation configuration
 	flags.StringVar(&conf.JSONIPFieldName, "json-ip-field", "ip", "key in JSON that contains IP address")
 	flags.StringVar(&conf.JSONAnnotationFieldName, "json-annotation-field", "zannotate", "key that metadata is injected at")
+	// add the flags defined by each of the annotation modules
+	for _, annotator := range zannotate.Annotators {
+		annotator.AddFlags(flags)
+	}
+	// parse
 	flags.Parse(os.Args[1:])
 	if conf.LogFilePath != "" {
 		f, err := os.OpenFile(conf.LogFilePath, os.O_WRONLY|os.O_CREATE, 0666)
@@ -59,12 +64,20 @@ func main() {
 	default:
 		log.Fatal("Unknown verbosity level specified. Must be between 1 (lowest)--5 (highest)")
 	}
-	// Check that we're doing anything
-	if conf.GeoIP2 != true && conf.Routing != true {
-		log.Fatal("No action requested")
-	}
 	if conf.InputFileType != "ips" && conf.InputFileType != "json" {
 		log.Fatal("invalid input file type")
 	}
+	// check if we have any annotations to be performed
+	annotationsPresent := false
+	for _, annotator := range zannotate.Annotators {
+		if annotator.IsEnabled() {
+			annotationsPresent = true
+			break
+		}
+	}
+	if !annotationsPresent {
+		log.Fatal("You must select at least one annotation to perform")
+	}
+	// perform annotation
 	zannotate.DoAnnotation(&conf)
 }

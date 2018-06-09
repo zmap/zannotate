@@ -65,3 +65,7 @@ func (a *RDNSAnnotator) Annotate(ip net.IP) interface{} {
 	return nil
 }
 
+func init() {
+	s := new(RDNSAnnotator)
+	RegisterAnnotator(s)
+}
