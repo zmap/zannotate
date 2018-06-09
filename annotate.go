@@ -62,6 +62,7 @@ func ipToInProcess(line string) inProcessIP {
 	return retv
 }
 
+// single worker that reads from file and queues raw lines
 func AnnotateRead(conf *GlobalConf, path string, in chan<- string) {
 	log.Debug("read thread started")
 	var f *os.File
@@ -90,14 +91,26 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- string) {
 	log.Debug("read thread finished")
 }
 
-func AnnotateInputDecode(conf *GlobalConf, out chan<- inProcessIP, inChan <-chan string, wg *sync.WaitGroup, i int) {
+// multiple workers that decode raw lines from AnnotateRead from JSON/CSV into native golang objects
+func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string, outChan chan<- inProcessIP, wg *sync.WaitGroup, i int) {
 	for line := range inChan {
 		l := strings.TrimSuffix(line, "\n")
 		if conf.InputFileType == "json" {
-			out <- jsonToInProcess(l, conf.JSONIPFieldName, conf.JSONAnnotationFieldName)
+			outChan <- jsonToInProcess(l, conf.JSONIPFieldName, conf.JSONAnnotationFieldName)
 		} else {
-			out <- ipToInProcess(l)
+			outChan <- ipToInProcess(l)
 		}
+	}
+	wg.Done()
+}
+
+func AnnotateOutputEncode(conf *GlobalConf, inChan <-chan inProcessIP, outChan chan<- string, wg *sync.WaitGroup, i int) {
+	for rec := range inChan {
+		jsonRes, err := json.Marshal(rec.Out)
+		if err != nil {
+			log.Fatal("Unable to marshal JSON result", err)
+		}
+		outChan <- string(jsonRes)
 	}
 	wg.Done()
 }
@@ -148,32 +161,51 @@ func DoAnnotation(conf *GlobalConf) {
 	// decode input data
 	var decodeWG sync.WaitGroup
 	for i := 0; i < conf.InputDecodeThreads; i++ {
-		go AnnotateInputDecode(conf, inRaw, inDecoded, decodeWG, i)
+		go AnnotateInputDecode(conf, inRaw, inDecoded, &decodeWG, i)
 		decodeWG.Add(1)
 	}
 	// spawn threads for each type of annotator
-	var annotateWG sync.WaitGroup
 	lastChannel := inDecoded
 	nextChannel := make(chan inProcessIP)
+	var annotateWaitGroups []*sync.WaitGroup
+	var annotateChannels []chan inProcessIP
+
 	for _, annotator := range Annotators {
 		if annotator.IsEnabled() {
+			var annotateWG sync.WaitGroup
 			for i := 0; i < annotator.GetWorkers(); i++ {
-				go AnnotateWorker(annotator.MakeAnnotator(i), lastChannel, nextChannel, annotateWG, i)
+				go AnnotateWorker(annotator.MakeAnnotator(i), lastChannel, nextChannel, &annotateWG, i)
 			}
 			lastChannel = nextChannel
+			annotateWaitGroups = append(annotateWaitGroups, &annotateWG)
+			annotateChannels = append(annotateChannels, lastChannel)
 			nextChannel = make(chan inProcessIP)
 		}
 	}
 	// encode raw data
 	var encodeWG sync.WaitGroup
+	encodedOut := make(chan string)
 	for i := 0; i < conf.OutputEncodeThreads; i++ {
-		go AnnotateInputDecode(conf, encodeWG, lastChannel, encodedOut, i)
+		go AnnotateOutputEncode(conf, lastChannel, encodedOut, &encodeWG, i)
 		encodeWG.Add(1)
 	}
-	go AnnotateWrite(conf.OutputFilePath, encodedOut, &outputWG)
-
-	annotateWG.Wait()
-	close(outChan)
-	outputWG.Wait()
+	var writeWG sync.WaitGroup
+	go AnnotateWrite(conf.OutputFilePath, encodedOut, &writeWG)
+	writeWG.Add(1)
+	// all workers started. close out everything in a safe order
+	// inRaw: we don't need to wait on this because it'll close its own channel when it finishes
+	// until that channel is closed, none of the decoder threads will finish. So, just wait for them
+	decodeWG.Wait()
+	close(inDecoded)
+	// wait on all of the different types of annotation workers
+	for i, wg := range annotateWaitGroups {
+		wg.Wait()
+		close(annotateChannels[i])
+	}
+	// wait for the encoders
+	encodeWG.Wait()
+	close(encodedOut)
+	// wait on writing to file
+	writeWG.Wait()
 	//endTime := time.Now().Format(time.RFC3339)
 }
