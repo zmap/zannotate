@@ -90,8 +90,8 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- string) {
 	log.Debug("read thread finished")
 }
 
-func AnnotateInputDecode(conf *GlobalConf, out <-chan inProcessIP, in chan<- string) {
-	for line := range in {
+func AnnotateInputDecode(conf *GlobalConf, out chan<- inProcessIP, inChan <-chan string, wg *sync.WaitGroup, i int) {
+	for line := range inChan {
 		l := strings.TrimSuffix(line, "\n")
 		if conf.InputFileType == "json" {
 			out <- jsonToInProcess(l, conf.JSONIPFieldName, conf.JSONAnnotationFieldName)
@@ -99,6 +99,7 @@ func AnnotateInputDecode(conf *GlobalConf, out <-chan inProcessIP, in chan<- str
 			out <- ipToInProcess(l)
 		}
 	}
+	wg.Done()
 }
 
 func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
@@ -121,7 +122,7 @@ func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
 	log.Debug("write thread finished")
 }
 
-func AnnotateWorker(a Annotator, inChan <-chan inProcessIP, wg *sync.WaitGroup, i int) {
+func AnnotateWorker(a Annotator, inChan <-chan inProcessIP, outChan chan<- inProcessIP, wg *sync.WaitGroup, i int) {
 	name := a.GetFieldName()
 	log.Debug("annotate worker (", name, ") ", i, " started")
 	if err := a.Initialize(); err != nil {
@@ -143,11 +144,11 @@ func DoAnnotation(conf *GlobalConf) {
 	inRaw := make(chan string)
 	inDecoded := make(chan inProcessIP)
 	// read input file
-	go AnnotateRead(conf, inRaw)
+	go AnnotateRead(conf, conf.InputFilePath, inRaw)
 	// decode input data
 	var decodeWG sync.WaitGroup
-	for i := range conf.InputDecodeThreads {
-		go AnnotateInputDecode(conf, decodeWG, inRaw, inDecoded, i)
+	for i := 0; i < conf.InputDecodeThreads; i++ {
+		go AnnotateInputDecode(conf, inRaw, inDecoded, decodeWG, i)
 		decodeWG.Add(1)
 	}
 	// spawn threads for each type of annotator
@@ -156,7 +157,7 @@ func DoAnnotation(conf *GlobalConf) {
 	nextChannel := make(chan inProcessIP)
 	for _, annotator := range Annotators {
 		if annotator.IsEnabled() {
-			for i := 1; i < annotator.GetThreads(); i++ {
+			for i := 0; i < annotator.GetWorkers(); i++ {
 				go AnnotateWorker(annotator.MakeAnnotator(i), lastChannel, nextChannel, annotateWG, i)
 			}
 			lastChannel = nextChannel
@@ -165,7 +166,7 @@ func DoAnnotation(conf *GlobalConf) {
 	}
 	// encode raw data
 	var encodeWG sync.WaitGroup
-	for i := 1; i <= conf.OutputEncodeThreads; i++ {
+	for i := 0; i < conf.OutputEncodeThreads; i++ {
 		go AnnotateInputDecode(conf, encodeWG, lastChannel, encodedOut, i)
 		encodeWG.Add(1)
 	}

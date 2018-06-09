@@ -71,7 +71,7 @@ type GeoIP2AnnotatorFactory struct {
 	Language   string
 	RawInclude string
 
-	Conf   *GlobalConf
+	Conf *GlobalConf
 	// what data to include
 	IncludeCity               bool
 	IncludeCountry            bool
@@ -86,8 +86,8 @@ type GeoIP2AnnotatorFactory struct {
 
 type GeoIP2Annotator struct {
 	Factory *GeoIP2AnnotatorFactory
-	Reader *geoip2.Reader
-	Id int
+	Reader  *geoip2.Reader
+	Id      int
 }
 
 // GeoIP2 Annotator Factory (Global)
@@ -106,6 +106,10 @@ func (a *GeoIP2AnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 
 func (a *GeoIP2AnnotatorFactory) IsEnabled() bool {
 	return a.Enabled
+}
+
+func (a *GeoIP2AnnotatorFactory) GetWorkers() int {
+	return a.Threads
 }
 
 func (a *GeoIP2AnnotatorFactory) MakeAnnotator(i int) Annotator {
@@ -192,7 +196,6 @@ func (a *GeoIP2Annotator) Initialize() error {
 	return nil
 }
 
-
 func (a *GeoIP2Annotator) GeoIP2FillStruct(in *geoip2.City) *GeoIP2Output {
 	language := a.Factory.Language
 	var out GeoIP2Output
@@ -253,7 +256,6 @@ func (a *GeoIP2Annotator) GeoIP2FillStruct(in *geoip2.City) *GeoIP2Output {
 	return &out
 }
 
-
 func (a *GeoIP2Annotator) GetFieldName() string {
 	return "geoip2"
 }
@@ -269,8 +271,6 @@ func (a *GeoIP2Annotator) Annotate(ip net.IP) interface{} {
 func (a *GeoIP2Annotator) Close() error {
 	return nil
 }
-
-
 
 func init() {
 	f := new(GeoIP2AnnotatorFactory)

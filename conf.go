@@ -31,6 +31,7 @@ type Annotator interface {
 type AnnotatorFactory interface {
 	Initialize(c *GlobalConf) error
 	AddFlags(flags *flag.FlagSet)
+	GetWorkers() int
 	IsEnabled() bool
 	MakeAnnotator(i int) Annotator
 	Close() error

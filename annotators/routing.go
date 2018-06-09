@@ -53,6 +53,10 @@ func (a *RoutingAnnotatorFactory) IsEnabled() bool {
 	return a.Enabled
 }
 
+func (a *RoutingAnnotatorFactory) GetWorkers() int {
+	return a.Threads
+}
+
 func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
 	if a.RoutingTablePath == "" {
 		return errors.New("no routing file (MRT TABLE_DUMPv2) provided")
