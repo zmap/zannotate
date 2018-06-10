@@ -101,13 +101,14 @@ func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string, outChan chan<- 
 		if conf.InputFileType == "json" {
 			val := jsonToInProcess(l, conf.JSONIPFieldName, conf.JSONAnnotationFieldName)
 			if conf.JSONAnnotationFieldName != "" {
-				val.Out[conf.JSONAnnotationFieldName] = new(map[string]interface{})
+				val.Out[conf.JSONAnnotationFieldName] = make(map[string]interface{})
 			}
 			outChan <- val
 		} else {
 			outChan <- ipToInProcess(l)
 		}
 	}
+	log.Debugf("decode thread %i done", i)
 	wg.Done()
 }
 
@@ -186,7 +187,7 @@ func DoAnnotation(conf *GlobalConf) {
 			var annotateWG sync.WaitGroup
 			for i := 0; i < annotator.GetWorkers(); i++ {
 				go AnnotateWorker(annotator.MakeAnnotator(i), lastChannel, nextChannel, conf.JSONAnnotationFieldName, &annotateWG, i)
-				decodeWG.Add(1)
+				annotateWG.Add(1)
 			}
 			lastChannel = nextChannel
 			annotateWaitGroups = append(annotateWaitGroups, &annotateWG)
