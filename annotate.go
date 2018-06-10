@@ -1,5 +1,7 @@
+package zannotate
+
 /*
- * ZAnnotate Copyright 2017 Regents of the University of Michigan
+ * ZAnnotate Copyright 2018 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -12,8 +14,6 @@
  * permissions and limitations under the License.
  */
 
-package zannotate
-
 import (
 	"bufio"
 	"encoding/json"
@@ -23,35 +23,52 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/oschwald/geoip2-golang"
 	log "github.com/sirupsen/logrus"
 )
 
-type GlobalConf struct {
-	InputFilePath           string
-	InputFileType           string
-	OutputFilePath          string
-	MetadataFilePath        string
-	LogFilePath             string
-	Verbosity               int
-	Threads                 int
-	JSONIPFieldName         string
-	JSONAnnotationFieldName string
-
-	GeoIP2     bool
-	GeoIP2Conf GeoIP2Conf
-
-	Routing     bool
-	RoutingConf RoutingConf
+// struct that is populated by the input reader and passed between types of worker threads
+type inProcessIP struct {
+	Out map[string]interface{}
+	Ip  net.IP
 }
 
-type Result struct {
-	Ip      string         `json:"ip,omitempty"`
-	GeoIP2  *GeoIP2Output  `json:"geoip2,omitempty"`
-	Routing *RoutingOutput `json:"routing,omitempty"`
+func jsonToInProcess(line string, ipFieldName string,
+	annotationFieldName string) inProcessIP {
+	//
+	var inParsed interface{}
+	var retv inProcessIP
+	if err := json.Unmarshal([]byte(line), &inParsed); err != nil {
+		log.Fatal("unable to parse input json record: ", line)
+	}
+	jsonMap := inParsed.(map[string]interface{})
+	if val, ok := jsonMap[ipFieldName]; ok {
+		if valS, ok := val.(string); ok {
+			retv.Ip = net.ParseIP(valS)
+		} else {
+			log.Fatal("ip is not a string in JSON for ", line)
+		}
+	} else {
+		log.Fatal("unable to find IP address field in ", line)
+	}
+	if _, ok := jsonMap[annotationFieldName]; ok {
+		log.Fatal("input record already contains annotation key ", line)
+	}
+	retv.Out = jsonMap
+	return retv
 }
 
-func AnnotateRead(path string, in chan<- string) {
+func ipToInProcess(line string) inProcessIP {
+	var retv inProcessIP
+	retv.Ip = net.ParseIP(line)
+	if retv.Ip == nil {
+		log.Fatal("invalid input IP address: ", line)
+	}
+	retv.Out = make(map[string]interface{})
+	return retv
+}
+
+// single worker that reads from file and queues raw lines
+func AnnotateRead(conf *GlobalConf, path string, in chan<- string) {
 	log.Debug("read thread started")
 	var f *os.File
 	if path == "" || path == "-" {
@@ -67,8 +84,9 @@ func AnnotateRead(path string, in chan<- string) {
 	}
 	r := bufio.NewReader(f)
 	line, err := r.ReadString('\n')
+	// read IPs out of JSON input
 	for err == nil {
-		in <- strings.TrimSuffix(line, "\n")
+		in <- line
 		line, err = r.ReadString('\n')
 	}
 	if err != nil && err != io.EOF {
@@ -76,6 +94,40 @@ func AnnotateRead(path string, in chan<- string) {
 	}
 	close(in)
 	log.Debug("read thread finished")
+}
+
+// multiple workers that decode raw lines from AnnotateRead
+// from JSON/CSV into native golang objects
+func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string,
+	outChan chan<- inProcessIP, wg *sync.WaitGroup, i int) {
+	//
+	for line := range inChan {
+		l := strings.TrimSuffix(line, "\n")
+		if conf.InputFileType == "json" {
+			val := jsonToInProcess(l, conf.JSONIPFieldName, conf.JSONAnnotationFieldName)
+			if conf.JSONAnnotationFieldName != "" {
+				val.Out[conf.JSONAnnotationFieldName] = make(map[string]interface{})
+			}
+			outChan <- val
+		} else {
+			outChan <- ipToInProcess(l)
+		}
+	}
+	log.Debugf("decode thread %i done", i)
+	wg.Done()
+}
+
+func AnnotateOutputEncode(conf *GlobalConf, inChan <-chan inProcessIP,
+	outChan chan<- string, wg *sync.WaitGroup, i int) {
+	//
+	for rec := range inChan {
+		jsonRes, err := json.Marshal(rec.Out)
+		if err != nil {
+			log.Fatal("Unable to marshal JSON result", err)
+		}
+		outChan <- string(jsonRes)
+	}
+	wg.Done()
 }
 
 func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
@@ -98,97 +150,94 @@ func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
 	log.Debug("write thread finished")
 }
 
-func AnnotateWorker(conf *GlobalConf, in <-chan string, out chan<- string,
-	wg *sync.WaitGroup, i int) {
-	log.Debug("annotate worker ", i, " started")
-	// not entirely sure if this geolocation library is thread safe
-	// so for now we're just going to open the MaxMind database in every thraed
-	var geoIP2db *geoip2.Reader
-	if conf.GeoIP2 {
-		geoIP2db = GeoIP2Open(&conf.GeoIP2Conf)
-		defer geoIP2db.Close()
+func AnnotateWorker(a Annotator, inChan <-chan inProcessIP,
+	outChan chan<- inProcessIP, fieldName string, wg *sync.WaitGroup, i int) {
+	//
+	name := a.GetFieldName()
+	log.Debug("annotate worker (", name, ") ", i, " started")
+	if err := a.Initialize(); err != nil {
+		log.Fatal("error initializing annotate worker: ", err)
 	}
-	log.Debug("annotate worker ", i, " initialization finished")
-	for line := range in {
-		// all lookup operations performed off of IP, which we parse into
-		// depending on the configuration type
-		var ip net.IP
-		// JSON use only, but must be accessible throughout the loop
-		var jsonMap map[string]interface{}
-		if conf.InputFileType == "json" {
-			var inParsed interface{}
-			if err := json.Unmarshal([]byte(line), &inParsed); err != nil {
-				log.Fatal("unable to parse json: ", line)
-			}
-			jsonMap = inParsed.(map[string]interface{})
-			if val, ok := jsonMap[conf.JSONIPFieldName]; ok {
-				if valS, ok := val.(string); ok {
-					ip = net.ParseIP(valS)
-				} else {
-					log.Fatal("ip is not a string in JSON for ", line)
-				}
-			} else {
-				log.Fatal("unable to find IP address field in ", line)
-			}
-			if _, ok := jsonMap[conf.JSONAnnotationFieldName]; ok {
-				log.Fatal("input record already contains annotation key ", line)
-			}
+	for inProcess := range inChan {
+		if fieldName != "" {
+			p := inProcess.Out[fieldName].(map[string]interface{})
+			p[name] = a.Annotate(inProcess.Ip)
 		} else {
-			ip = net.ParseIP(line)
+			inProcess.Out[name] = a.Annotate(inProcess.Ip)
 		}
-		if ip == nil {
-			log.Fatal("invalid IP received: ", line)
-		}
-		var res Result
-		if conf.GeoIP2 == true {
-			record, err := geoIP2db.City(ip)
-			if err != nil {
-				log.Fatal(err)
-			}
-			res.GeoIP2 = GeoIP2FillStruct(record, &conf.GeoIP2Conf)
-		}
-		if conf.Routing {
-			res.Routing = RoutingFillStruct(ip, &conf.RoutingConf)
-		}
-		if conf.InputFileType == "json" {
-			jsonMap[conf.JSONAnnotationFieldName] = res
-			jsonRes, err := json.Marshal(jsonMap)
-			if err != nil {
-				log.Fatal("Unable to marshal JSON result", err)
-			}
-			out <- string(jsonRes)
-
-		} else {
-			res.Ip = ip.String()
-			jsonRes, err := json.Marshal(res)
-			if err != nil {
-				log.Fatal("Unable to marshal JSON result", err)
-			}
-			out <- string(jsonRes)
-		}
+		outChan <- inProcess
 	}
 	wg.Done()
-	log.Debug("annotate worker ", i, " finished")
 }
 
 func DoAnnotation(conf *GlobalConf) {
-	outChan := make(chan string)
-	inChan := make(chan string)
-
-	var outputWG sync.WaitGroup
-	outputWG.Add(1)
-
-	//startTime := time.Now().Format(time.RFC3339)
-	go AnnotateRead(conf.InputFilePath, inChan)
-	go AnnotateWrite(conf.OutputFilePath, outChan, &outputWG)
-
-	var annotateWG sync.WaitGroup
-	annotateWG.Add(conf.Threads)
-	for i := 0; i < conf.Threads; i++ {
-		go AnnotateWorker(conf, inChan, outChan, &annotateWG, i)
+	// let each enabled annotator do their global initialization
+	// before we ask them to generate threa Annotators
+	for _, annotator := range Annotators {
+		if annotator.IsEnabled() {
+			if err := annotator.Initialize(conf); err != nil {
+				log.Fatal("Annotation unable to initialize: ", err)
+			}
+		}
 	}
-	annotateWG.Wait()
-	close(outChan)
-	outputWG.Wait()
+	// several types of channels/subprocesses
+	// [read from file](1) -> [decode input data](n,d=3) -> [annotator 1](n)
+	//    -> [annotator 2](n) -> ... -> [annotator n](n) -> [encode output data](n,d=3)
+	//    -> [write to file](1)
+	inRaw := make(chan string)
+	inDecoded := make(chan inProcessIP)
+	// read input file
+	go AnnotateRead(conf, conf.InputFilePath, inRaw)
+	// decode input data
+	var decodeWG sync.WaitGroup
+	for i := 0; i < conf.InputDecodeThreads; i++ {
+		go AnnotateInputDecode(conf, inRaw, inDecoded, &decodeWG, i)
+		decodeWG.Add(1)
+	}
+	// spawn threads for each type of annotator
+	lastChannel := inDecoded
+	nextChannel := make(chan inProcessIP)
+	var annotateWaitGroups []*sync.WaitGroup
+	var annotateChannels []chan inProcessIP
+	for _, annotator := range Annotators {
+		if annotator.IsEnabled() {
+			var annotateWG sync.WaitGroup
+			for i := 0; i < annotator.GetWorkers(); i++ {
+				go AnnotateWorker(annotator.MakeAnnotator(i), lastChannel, nextChannel,
+					conf.JSONAnnotationFieldName, &annotateWG, i)
+				annotateWG.Add(1)
+			}
+			lastChannel = nextChannel
+			annotateWaitGroups = append(annotateWaitGroups, &annotateWG)
+			annotateChannels = append(annotateChannels, lastChannel)
+			nextChannel = make(chan inProcessIP)
+		}
+	}
+	// encode raw data
+	var encodeWG sync.WaitGroup
+	encodedOut := make(chan string)
+	for i := 0; i < conf.OutputEncodeThreads; i++ {
+		go AnnotateOutputEncode(conf, lastChannel, encodedOut, &encodeWG, i)
+		encodeWG.Add(1)
+	}
+	var writeWG sync.WaitGroup
+	go AnnotateWrite(conf.OutputFilePath, encodedOut, &writeWG)
+	writeWG.Add(1)
+	// all workers started. close out everything in a safe order
+	// inRaw: we don't need to wait on this because it'll close its own channel
+	// when it finishes until that channel is closed, none of the decoder threads
+	// will finish. So, just wait for them.
+	decodeWG.Wait()
+	close(inDecoded)
+	// wait on all of the different types of annotation workers
+	for i, wg := range annotateWaitGroups {
+		wg.Wait()
+		close(annotateChannels[i])
+	}
+	// wait for the encoders
+	encodeWG.Wait()
+	close(encodedOut)
+	// wait on writing to file
+	writeWG.Wait()
 	//endTime := time.Now().Format(time.RFC3339)
 }

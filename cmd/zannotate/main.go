@@ -1,5 +1,5 @@
 /*
- * ZAnnotate Copyright 2017 Regents of the University of Michigan
+ * ZAnnotate Copyright 2018 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -33,26 +33,17 @@ func main() {
 		"where should JSON metadata be saved")
 	flags.StringVar(&conf.LogFilePath, "log-file", "", "where should JSON logs be saved")
 	flags.IntVar(&conf.Verbosity, "verbosity", 3, "log verbosity: 1 (lowest)--5 (highest)")
-	flags.IntVar(&conf.Threads, "threads", 5, "how many processing threads to use")
-	// MaxMind GeoIP2
-	flags.BoolVar(&conf.GeoIP2, "geoip2", false, "geolocate")
-	flags.StringVar(&conf.GeoIP2Conf.Path, "geoip2-database", "",
-		"path to MaxMind GeoIP2 database")
-	flags.StringVar(&conf.GeoIP2Conf.Mode, "geoip2-mode", "mmap",
-		"how to open database: mmap or memory")
-	flags.StringVar(&conf.GeoIP2Conf.Language, "geoip2-language", "en",
-		"how to open database: mmap or memory")
-	flags.StringVar(&conf.GeoIP2Conf.RawInclude, "geoip2-fields", "*",
-		"city, continent, country, location, postal, registered_country, subdivisions, traits")
-	// Routing Table AS Data
-	flags.BoolVar(&conf.Routing, "routing", false, "routing")
-	flags.StringVar(&conf.RoutingConf.RoutingTablePath, "mrt-file", "",
-		"path to MRT TABLE_DUMPv2 file")
-	flags.StringVar(&conf.RoutingConf.ASNamesPath, "as-names", "", "path to as names file")
 	// json annotation configuration
 	flags.StringVar(&conf.JSONIPFieldName, "json-ip-field", "ip", "key in JSON that contains IP address")
-	flags.StringVar(&conf.JSONAnnotationFieldName, "json-annotation-field", "zannotate", "key that metadata is injeted at")
-
+	flags.StringVar(&conf.JSONAnnotationFieldName, "json-annotation-field", "zannotate", "key that metadata is injected at")
+	// encode/decode threads
+	flags.IntVar(&conf.InputDecodeThreads, "input-decode-threads", 3, "number of golang processes to decode input data (e.g., json)")
+	flags.IntVar(&conf.OutputEncodeThreads, "output-encode-threads", 3, "number of golang processes to encode output data (e.g., json)")
+	// add the flags defined by each of the annotation modules
+	for _, annotator := range zannotate.Annotators {
+		annotator.AddFlags(flags)
+	}
+	// parse
 	flags.Parse(os.Args[1:])
 	if conf.LogFilePath != "" {
 		f, err := os.OpenFile(conf.LogFilePath, os.O_WRONLY|os.O_CREATE, 0666)
@@ -76,28 +67,20 @@ func main() {
 	default:
 		log.Fatal("Unknown verbosity level specified. Must be between 1 (lowest)--5 (highest)")
 	}
-	// Check that we're doing anything
-	if conf.GeoIP2 != true && conf.Routing != true {
-		log.Fatal("No action requested")
-	}
 	if conf.InputFileType != "ips" && conf.InputFileType != "json" {
 		log.Fatal("invalid input file type")
 	}
-	// Check GeoIP2 sanity
-	if conf.GeoIP2 == true {
-		if conf.GeoIP2Conf.Path == "" {
-			log.Fatal("no GeoIP2 database provided")
+	// check if we have any annotations to be performed
+	annotationsPresent := false
+	for _, annotator := range zannotate.Annotators {
+		if annotator.IsEnabled() {
+			annotationsPresent = true
+			break
 		}
-		zannotate.GeoIP2ParseRawIncludeString(&conf.GeoIP2Conf)
-		log.Info("will add geoip2 using ", conf.GeoIP2Conf.Path)
 	}
-	if conf.Routing == true {
-		if conf.RoutingConf.RoutingTablePath == "" {
-			log.Fatal("no routing file (MRT TABLE_DUMPv2) provided")
-		}
-		log.Info("will add routing using ", conf.RoutingConf.RoutingTablePath)
-		zannotate.BuildTree(&conf.RoutingConf)
-		log.Debug("finished building routing table tree")
+	if !annotationsPresent {
+		log.Fatal("You must select at least one annotation to perform")
 	}
+	// perform annotation
 	zannotate.DoAnnotation(&conf)
 }

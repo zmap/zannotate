@@ -1,5 +1,5 @@
 /*
- * ZAnnotate Copyright 2017 Regents of the University of Michigan
+ * ZAnnotate Copyright 2018 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,29 +15,15 @@
 package zannotate
 
 import (
+	"flag"
+	"fmt"
 	"io/ioutil"
+	"net"
 	"strings"
 
 	"github.com/oschwald/geoip2-golang"
 	log "github.com/sirupsen/logrus"
 )
-
-type GeoIP2Conf struct {
-	Path       string
-	Mode       string
-	Language   string
-	RawInclude string
-	// what data to include
-	IncludeCity               bool
-	IncludeCountry            bool
-	IncludeContinent          bool
-	IncludePostal             bool
-	IncludeLatLong            bool
-	IncludeTraits             bool
-	IncludeSubdivisions       bool
-	IncludeRepresentedCountry bool
-	IncludeRegisteredCountry  bool
-}
 
 type GeoIP2City struct {
 	Name      string `json:"name"`
@@ -78,71 +64,161 @@ type GeoIP2Output struct {
 	Traits             *GeoIP2Traits  `json:"metadata,omitempty"`
 }
 
-func GeoIP2ParseRawIncludeString(conf *GeoIP2Conf) {
-	if conf.RawInclude == "*" {
+type GeoIP2AnnotatorFactory struct {
+	BasePluginConf
+	Path       string
+	Mode       string
+	Language   string
+	RawInclude string
+
+	Conf *GlobalConf
+	// what data to include
+	IncludeCity               bool
+	IncludeCountry            bool
+	IncludeContinent          bool
+	IncludePostal             bool
+	IncludeLatLong            bool
+	IncludeTraits             bool
+	IncludeSubdivisions       bool
+	IncludeRepresentedCountry bool
+	IncludeRegisteredCountry  bool
+}
+
+type GeoIP2Annotator struct {
+	Factory *GeoIP2AnnotatorFactory
+	Reader  *geoip2.Reader
+	Id      int
+}
+
+// GeoIP2 Annotator Factory (Global)
+func (a *GeoIP2AnnotatorFactory) AddFlags(flags *flag.FlagSet) {
+	flags.BoolVar(&a.Enabled, "geoip2", false, "annotate with Maxmind GeoIP2 data")
+	flags.StringVar(&a.Path, "geoip2-database", "",
+		"path to MaxMind GeoIP2 database")
+	flags.StringVar(&a.Mode, "geoip2-mode", "mmap",
+		"how to open database: mmap or memory")
+	flags.StringVar(&a.Language, "geoip2-language", "en",
+		"how to open database: mmap or memory")
+	flags.StringVar(&a.RawInclude, "geoip2-fields", "*",
+		"city, continent, country, location, postal, registered_country, subdivisions, traits")
+	flags.IntVar(&a.Threads, "geoip2-threads", 5, "how many geoIP processing threads to use")
+}
+
+func (a *GeoIP2AnnotatorFactory) IsEnabled() bool {
+	return a.Enabled
+}
+
+func (a *GeoIP2AnnotatorFactory) GetWorkers() int {
+	return a.Threads
+}
+
+func (a *GeoIP2AnnotatorFactory) MakeAnnotator(i int) Annotator {
+	var v GeoIP2Annotator
+	v.Factory = a
+	v.Id = i
+	return &v
+}
+
+func (a *GeoIP2AnnotatorFactory) Initialize(conf *GlobalConf) error {
+	if a.Path == "" {
+		log.Fatal("no GeoIP2 database provided")
+	}
+	log.Info("will add geoip2 using ", a.Path)
+	if a.RawInclude == "*" {
 		log.Debug("will include all geoip fields")
-		conf.IncludeCity = true
-		conf.IncludeCountry = true
-		conf.IncludeContinent = true
-		conf.IncludePostal = true
-		conf.IncludeLatLong = true
-		conf.IncludeTraits = true
-		conf.IncludeSubdivisions = true
-		conf.IncludeRegisteredCountry = true
-		conf.IncludeRepresentedCountry = true
+		a.IncludeCity = true
+		a.IncludeCountry = true
+		a.IncludeContinent = true
+		a.IncludePostal = true
+		a.IncludeLatLong = true
+		a.IncludeTraits = true
+		a.IncludeSubdivisions = true
+		a.IncludeRegisteredCountry = true
+		a.IncludeRepresentedCountry = true
 	} else {
-		log.Debug("will include GeoIP fields: ", conf.RawInclude)
-		for _, s := range strings.Split(conf.RawInclude, ",") {
+		log.Debug("will include GeoIP fields: ", a.RawInclude)
+		for _, s := range strings.Split(a.RawInclude, ",") {
 			ps := strings.Trim(s, " ")
 			switch ps {
 			case "city":
-				conf.IncludeCity = true
+				a.IncludeCity = true
 			case "country":
-				conf.IncludeCountry = true
+				a.IncludeCountry = true
 			case "continent":
-				conf.IncludeContinent = true
+				a.IncludeContinent = true
 			case "latlong":
-				conf.IncludeLatLong = true
+				a.IncludeLatLong = true
 			case "postal":
-				conf.IncludePostal = true
+				a.IncludePostal = true
 			case "traits":
-				conf.IncludeTraits = true
+				a.IncludeTraits = true
 			case "subdivisions":
-				conf.IncludeSubdivisions = true
+				a.IncludeSubdivisions = true
 			case "registered_country":
-				conf.IncludeRegisteredCountry = true
+				a.IncludeRegisteredCountry = true
 			case "represented_country":
-				conf.IncludeRepresentedCountry = true
+				a.IncludeRepresentedCountry = true
 			default:
-				log.Fatal("Invalid GeoIP2 field: ", ps)
+				return fmt.Errorf("Invalid GeoIP2 field: %s", ps)
 			}
 		}
 	}
+	return nil
 }
 
-func GeoIP2FillStruct(in *geoip2.City, conf *GeoIP2Conf) *GeoIP2Output {
+func (a *GeoIP2AnnotatorFactory) Close() error {
+	return nil
+}
+
+// GeoIP2 Annotator (Per-Worker)
+
+func (a *GeoIP2Annotator) Initialize() error {
+	if a.Factory.Mode == "memory" {
+		bytes, err := ioutil.ReadFile(a.Factory.Path)
+		if err != nil {
+			log.Fatal("unable to open maxmind geoIP2 database (memory): ", err)
+		}
+		db, err := geoip2.FromBytes(bytes)
+		if err != nil {
+			log.Fatal("unable to parse maxmind geoIP2 database: ", err)
+		}
+		a.Reader = db
+	} else if a.Factory.Mode == "mmap" {
+		db, err := geoip2.Open(a.Factory.Path)
+		if err != nil {
+			log.Fatal("unable to load maxmind geoIP2 database: ", err)
+		}
+		a.Reader = db
+	} else {
+		log.Fatal("invalid GeoIP mode")
+	}
+	return nil
+}
+
+func (a *GeoIP2Annotator) GeoIP2FillStruct(in *geoip2.City) *GeoIP2Output {
+	language := a.Factory.Language
 	var out GeoIP2Output
-	if conf.IncludeCity == true {
+	if a.Factory.IncludeCity == true {
 		var city GeoIP2City
 		out.City = &city
-		out.City.Name = in.City.Names[conf.Language]
+		out.City.Name = in.City.Names[language]
 		out.City.GeoNameId = in.City.GeoNameID
 	}
-	if conf.IncludeCountry == true {
+	if a.Factory.IncludeCountry == true {
 		var country GeoIP2Country
 		out.Country = &country
-		out.Country.Name = in.Country.Names[conf.Language]
+		out.Country.Name = in.Country.Names[language]
 		out.Country.GeoNameId = in.Country.GeoNameID
 		out.Country.Code = in.Country.IsoCode
 	}
-	if conf.IncludeContinent == true {
+	if a.Factory.IncludeContinent == true {
 		var country GeoIP2Country
 		out.Continent = &country
-		out.Continent.Name = in.Continent.Names[conf.Language]
+		out.Continent.Name = in.Continent.Names[language]
 		out.Continent.GeoNameId = in.Continent.GeoNameID
 		out.Continent.Code = in.Continent.Code
 	}
-	if conf.IncludeLatLong == true {
+	if a.Factory.IncludeLatLong == true {
 		var latlong GeoIP2LatLong
 		out.LatLong = &latlong
 		out.LatLong.AccuracyRadius = in.Location.AccuracyRadius
@@ -151,52 +227,52 @@ func GeoIP2FillStruct(in *geoip2.City, conf *GeoIP2Conf) *GeoIP2Output {
 		out.LatLong.MetroCode = in.Location.MetroCode
 		out.LatLong.TimeZone = in.Location.TimeZone
 	}
-	if conf.IncludePostal == true {
+	if a.Factory.IncludePostal == true {
 		var postal GeoIP2Postal
 		out.Postal = &postal
 		out.Postal.Code = in.Postal.Code
 	}
-	if conf.IncludeTraits == true {
+	if a.Factory.IncludeTraits == true {
 		var traits GeoIP2Traits
 		out.Traits = &traits
 		out.Traits.IsAnonymousProxy = in.Traits.IsAnonymousProxy
 		out.Traits.IsSatelliteProvider = in.Traits.IsSatelliteProvider
 	}
-	if conf.IncludeRegisteredCountry == true {
+	if a.Factory.IncludeRegisteredCountry == true {
 		var country GeoIP2Country
 		out.RegisteredCountry = &country
-		out.RegisteredCountry.Name = in.RegisteredCountry.Names[conf.Language]
+		out.RegisteredCountry.Name = in.RegisteredCountry.Names[language]
 		out.RegisteredCountry.GeoNameId = in.RegisteredCountry.GeoNameID
 		out.RegisteredCountry.Code = in.RegisteredCountry.IsoCode
 	}
-	if conf.IncludeRepresentedCountry == true {
+	if a.Factory.IncludeRepresentedCountry == true {
 		var country GeoIP2Country
 		out.RepresentedCountry = &country
-		out.RepresentedCountry.Name = in.RepresentedCountry.Names[conf.Language]
+		out.RepresentedCountry.Name = in.RepresentedCountry.Names[language]
 		out.RepresentedCountry.GeoNameId = in.RepresentedCountry.GeoNameID
 		out.RepresentedCountry.Code = in.RepresentedCountry.IsoCode
 	}
 	return &out
 }
 
-func GeoIP2Open(conf *GeoIP2Conf) *geoip2.Reader {
-	if conf.Mode == "memory" {
-		bytes, err := ioutil.ReadFile(conf.Path)
-		if err != nil {
-			log.Fatal("unable to open maxmind geoIP2 database (memory): ", err)
-		}
-		db, err := geoip2.FromBytes(bytes)
-		if err != nil {
-			log.Fatal("unable to parse maxmind geoIP2 database: ", err)
-		}
-		return db
-	} else if conf.Mode == "mmap" {
-		db, err := geoip2.Open(conf.Path)
-		if err != nil {
-			log.Fatal("unable to load maxmind geoIP2 database: ", err)
-		}
-		return db
+func (a *GeoIP2Annotator) GetFieldName() string {
+	return "geoip2"
+}
+
+func (a *GeoIP2Annotator) Annotate(ip net.IP) interface{} {
+	record, err := a.Reader.City(ip)
+	if err != nil {
+		log.Fatal(err)
 	}
-	log.Fatal("invalid GeoIP mode")
+	return a.GeoIP2FillStruct(record)
+}
+
+func (a *GeoIP2Annotator) Close() error {
+	a.Reader.Close()
 	return nil
+}
+
+func init() {
+	f := new(GeoIP2AnnotatorFactory)
+	RegisterAnnotator(f)
 }

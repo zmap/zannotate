@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/osrg/gobgp/packet/bgp"
@@ -50,7 +49,11 @@ type RawRib struct {
 }
 
 func raw(conf *MRT2JsonGlobalConf, f *os.File) {
-	zmrt.MrtRawIterate(conf.InputFilePath, func(msg *mrt.MRTMessage) {
+	inputFile, err := os.Open(conf.InputFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	zmrt.MrtRawIterate(inputFile, func(msg *mrt.MRTMessage) error {
 		if msg.Header.Type != mrt.TABLE_DUMPv2 {
 			log.Fatal("not an MRT TABLE_DUMPv2")
 		}
@@ -99,15 +102,20 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 			f.WriteString(string(json))
 			f.WriteString("\n")
 		case mrt.GEO_PEER_TABLE:
-			//geopeers := msg.Body.(*mrt.GeoPeerTable)
+		//geopeers := msg.Body.(*mrt.GeoPeerTable)
 		default:
 			log.Fatalf("unsupported subType: %v", msg.Header.SubType)
 		}
+		return nil
 	})
 }
 
 func paths(conf *MRT2JsonGlobalConf, f *os.File) {
-	zmrt.MrtPathIterate(conf.InputFilePath, func(msg *zmrt.RIBEntry) {
+	inputFile, err := os.Open(conf.InputFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	zmrt.MrtPathIterate(inputFile, func(msg *zmrt.RIBEntry) {
 		json, _ := json.Marshal(msg)
 		f.WriteString(string(json))
 		f.WriteString("\n")
@@ -118,13 +126,16 @@ func main() {
 
 	var conf MRT2JsonGlobalConf
 	flags := flag.NewFlagSet("flags", flag.ExitOnError)
-	flags.StringVar(&conf.InputFilePath, "input-file", "", "ip addresses to read")
+	flags.StringVar(&conf.InputFilePath, "input-file", "", "path to MRT file")
 	flags.StringVar(&conf.OutputFilePath, "output-file", "-", "where should JSON output be saved")
 	flags.StringVar(&conf.LogFilePath, "log-file", "", "where should JSON output be saved")
 	flags.IntVar(&conf.Verbosity, "verbosity", 3, "where should JSON output be saved")
+
+	if len(os.Args) < 2 {
+		log.Fatalf("No command provided. Must choose raw or entries")
+	}
 	flags.Parse(os.Args[2:])
 
-	fmt.Println(conf.InputFilePath)
 	if conf.LogFilePath != "" {
 		f, err := os.OpenFile(conf.LogFilePath, os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
@@ -157,7 +168,7 @@ func main() {
 		var err error
 		f, err = os.OpenFile(conf.OutputFilePath, os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
-			log.Fatal("unable to open metadata file:", err.Error())
+			log.Fatal("unable to open output file: ", err.Error())
 		}
 		defer f.Close()
 	}
@@ -168,4 +179,5 @@ func main() {
 	} else {
 		log.Fatal("invalid command")
 	}
+
 }
