@@ -61,7 +61,7 @@ func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
 	if a.RoutingTablePath == "" {
 		return errors.New("no routing file (MRT TABLE_DUMPv2) provided")
 	}
-	log.Info("will add routing using ", a.RoutingTablePath)
+	log.Debug("will add routing using ", a.RoutingTablePath)
 	// Routing Lookup Trees are thread-safe
 	a.rlt = new(zrouting.RoutingLookupTree)
 	f, err := os.Open(a.RoutingTablePath)

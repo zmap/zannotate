@@ -74,7 +74,6 @@ func main() {
 	annotationsPresent := false
 	for _, annotator := range zannotate.Annotators {
 		if annotator.IsEnabled() {
-			annotator.Initialize(&conf)
 			annotationsPresent = true
 			break
 		}

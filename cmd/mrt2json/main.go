@@ -49,7 +49,11 @@ type RawRib struct {
 }
 
 func raw(conf *MRT2JsonGlobalConf, f *os.File) {
-	zmrt.MrtRawIterate(conf.InputFilePath, func(msg *mrt.MRTMessage) {
+	f, err := os.Open(conf.InputFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	zmrt.MrtRawIterate(f, func(msg *mrt.MRTMessage) error {
 		if msg.Header.Type != mrt.TABLE_DUMPv2 {
 			log.Fatal("not an MRT TABLE_DUMPv2")
 		}
@@ -102,11 +106,16 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 		default:
 			log.Fatalf("unsupported subType: %v", msg.Header.SubType)
 		}
+		return nil
 	})
 }
 
 func paths(conf *MRT2JsonGlobalConf, f *os.File) {
-	zmrt.MrtPathIterate(conf.InputFilePath, func(msg *zmrt.RIBEntry) {
+	f, err := os.Open(conf.InputFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	zmrt.MrtPathIterate(f, func(msg *zmrt.RIBEntry) {
 		json, _ := json.Marshal(msg)
 		f.WriteString(string(json))
 		f.WriteString("\n")

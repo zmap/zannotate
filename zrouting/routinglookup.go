@@ -42,7 +42,7 @@ type RoutingOutput struct {
 	Prefix string       `json:"prefix"`
 	ASN    uint32       `json:"asn,omitempty"`
 	Path   []uint32     `json:"path,omitempty"`
-	Origin *ASNameNode  `json:"as,omitempty"`
+	Origin *ASNameNode  `json:"origin,omitempty"`
 	Data   *interface{} `json:"data,omitempty"`
 }
 
