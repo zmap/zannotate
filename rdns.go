@@ -22,17 +22,16 @@ import (
 type RDNSAnnotatorFactory struct {
 	BasePluginConf
 	RawResolvers string
-
 }
 
 type RDNSAnnotator struct {
 	Factory *RDNSAnnotatorFactory
-	Id int
+	Id      int
 }
 
 // RDNS Annotator Factory (Global)
 
-func (a *RDNSAnnotatorFactory) MakeAnnotator(i int) *RDNSAnnotator {
+func (a *RDNSAnnotatorFactory) MakeAnnotator(i int) Annotator {
 	var v RDNSAnnotator
 	v.Factory = a
 	v.Id = i
@@ -43,13 +42,24 @@ func (a *RDNSAnnotatorFactory) Initialize(conf *GlobalConf) error {
 	return nil
 }
 
-func (a *RDNSAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
-	// Reverse DNS Lookup
-	flags.BoolVar(&a.Enabled, "reverse-dns", false, "reverse dns lookup")
-	flags.StringVar(&a.RawResolvers, "dns-servers", "", "list of DNS servers to use for DNS lookups")
-	flags.IntVar(&a.Threads, "rdns-threads", 100, "how many reverse dns threads")
+func (a *RDNSAnnotatorFactory) GetWorkers() int {
+	return a.Threads
 }
 
+func (a *RDNSAnnotatorFactory) Close() error {
+	return nil
+}
+
+func (a *RDNSAnnotatorFactory) IsEnabled() bool {
+	return a.Enabled
+}
+
+func (a *RDNSAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
+	// Reverse DNS Lookup
+	flags.BoolVar(&a.Enabled, "rdns", false, "reverse dns lookup")
+	flags.StringVar(&a.RawResolvers, "rdns-dns-servers", "", "list of DNS servers to use for DNS lookups")
+	flags.IntVar(&a.Threads, "rdns-threads", 100, "how many reverse dns threads")
+}
 
 // RDNS Annotator (Per-Worker)
 
@@ -65,7 +75,11 @@ func (a *RDNSAnnotator) Annotate(ip net.IP) interface{} {
 	return nil
 }
 
+func (a *RDNSAnnotator) Close() error {
+	return nil
+}
+
 func init() {
-	s := new(RDNSAnnotator)
+	s := new(RDNSAnnotatorFactory)
 	RegisterAnnotator(s)
 }

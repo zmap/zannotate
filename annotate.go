@@ -17,6 +17,7 @@ package zannotate
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -29,7 +30,7 @@ import (
 // struct that is populated by the input reader and passed between types of worker threads
 type inProcessIP struct {
 	Out map[string]interface{}
-	Ip net.IP
+	Ip  net.IP
 }
 
 func jsonToInProcess(line string, ipFieldName string, annotationFieldName string) inProcessIP {
@@ -52,6 +53,7 @@ func jsonToInProcess(line string, ipFieldName string, annotationFieldName string
 		log.Fatal("input record already contains annotation key ", line)
 	}
 	retv.Out = jsonMap
+	fmt.Println(jsonMap)
 	return retv
 }
 
@@ -175,6 +177,7 @@ func DoAnnotation(conf *GlobalConf) {
 			var annotateWG sync.WaitGroup
 			for i := 0; i < annotator.GetWorkers(); i++ {
 				go AnnotateWorker(annotator.MakeAnnotator(i), lastChannel, nextChannel, &annotateWG, i)
+				decodeWG.Add(1)
 			}
 			lastChannel = nextChannel
 			annotateWaitGroups = append(annotateWaitGroups, &annotateWG)

@@ -192,7 +192,6 @@ func (a *GeoIP2Annotator) Initialize() error {
 	} else {
 		log.Fatal("invalid GeoIP mode")
 	}
-	defer a.Reader.Close()
 	return nil
 }
 
@@ -269,6 +268,7 @@ func (a *GeoIP2Annotator) Annotate(ip net.IP) interface{} {
 }
 
 func (a *GeoIP2Annotator) Close() error {
+	a.Reader.Close()
 	return nil
 }
 
