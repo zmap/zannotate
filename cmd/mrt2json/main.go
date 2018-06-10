@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/osrg/gobgp/packet/bgp"
@@ -124,7 +123,6 @@ func main() {
 	flags.IntVar(&conf.Verbosity, "verbosity", 3, "where should JSON output be saved")
 	flags.Parse(os.Args[2:])
 
-	fmt.Println(conf.InputFilePath)
 	if conf.LogFilePath != "" {
 		f, err := os.OpenFile(conf.LogFilePath, os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {

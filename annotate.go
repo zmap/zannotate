@@ -17,7 +17,6 @@ package zannotate
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -53,13 +52,15 @@ func jsonToInProcess(line string, ipFieldName string, annotationFieldName string
 		log.Fatal("input record already contains annotation key ", line)
 	}
 	retv.Out = jsonMap
-	fmt.Println(jsonMap)
 	return retv
 }
 
 func ipToInProcess(line string) inProcessIP {
 	var retv inProcessIP
 	retv.Ip = net.ParseIP(line)
+	if retv.Ip == nil {
+		log.Fatal("invalid input IP address: ", line)
+	}
 	retv.Out = make(map[string]interface{})
 	return retv
 }
