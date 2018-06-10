@@ -99,7 +99,11 @@ func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string, outChan chan<- 
 	for line := range inChan {
 		l := strings.TrimSuffix(line, "\n")
 		if conf.InputFileType == "json" {
-			outChan <- jsonToInProcess(l, conf.JSONIPFieldName, conf.JSONAnnotationFieldName)
+			val := jsonToInProcess(l, conf.JSONIPFieldName, conf.JSONAnnotationFieldName)
+			if conf.JSONAnnotationFieldName != "" {
+				val.Out[conf.JSONAnnotationFieldName] = new(map[string]interface{})
+			}
+			outChan <- val
 		} else {
 			outChan <- ipToInProcess(l)
 		}
@@ -138,14 +142,19 @@ func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
 	log.Debug("write thread finished")
 }
 
-func AnnotateWorker(a Annotator, inChan <-chan inProcessIP, outChan chan<- inProcessIP, wg *sync.WaitGroup, i int) {
+func AnnotateWorker(a Annotator, inChan <-chan inProcessIP, outChan chan<- inProcessIP, fieldName string, wg *sync.WaitGroup, i int) {
 	name := a.GetFieldName()
 	log.Debug("annotate worker (", name, ") ", i, " started")
 	if err := a.Initialize(); err != nil {
 		log.Fatal("error initializing annotate worker: ", err)
 	}
 	for inProcess := range inChan {
-		inProcess.Out[name] = a.Annotate(inProcess.Ip)
+		if fieldName != "" {
+			p := inProcess.Out[fieldName].(map[string]interface{})
+			p[name] = a.Annotate(inProcess.Ip)
+		} else {
+			inProcess.Out[name] = a.Annotate(inProcess.Ip)
+		}
 		outChan <- inProcess
 	}
 	wg.Done()
@@ -172,12 +181,11 @@ func DoAnnotation(conf *GlobalConf) {
 	nextChannel := make(chan inProcessIP)
 	var annotateWaitGroups []*sync.WaitGroup
 	var annotateChannels []chan inProcessIP
-
 	for _, annotator := range Annotators {
 		if annotator.IsEnabled() {
 			var annotateWG sync.WaitGroup
 			for i := 0; i < annotator.GetWorkers(); i++ {
-				go AnnotateWorker(annotator.MakeAnnotator(i), lastChannel, nextChannel, &annotateWG, i)
+				go AnnotateWorker(annotator.MakeAnnotator(i), lastChannel, nextChannel, conf.JSONAnnotationFieldName, &annotateWG, i)
 				decodeWG.Add(1)
 			}
 			lastChannel = nextChannel

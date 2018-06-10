@@ -159,7 +159,7 @@ func (a *GeoIP2AnnotatorFactory) Initialize(conf *GlobalConf) error {
 			case "represented_country":
 				a.IncludeRepresentedCountry = true
 			default:
-				return fmt.Errorf("Invalid GeoIP2 field: ", ps)
+				return fmt.Errorf("Invalid GeoIP2 field: %s", ps)
 			}
 		}
 	}
