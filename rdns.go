@@ -79,7 +79,7 @@ func (a *RDNSAnnotator) Close() error {
 	return nil
 }
 
-func init() {
-	s := new(RDNSAnnotatorFactory)
-	RegisterAnnotator(s)
-}
+//func init() {
+//	s := new(RDNSAnnotatorFactory)
+//	RegisterAnnotator(s)
+//}
