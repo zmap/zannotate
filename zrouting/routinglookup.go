@@ -60,7 +60,8 @@ func (t *RoutingLookupTree) PopulateFromMRT(raw io.Reader) {
 			n.Prefix = e.Prefix
 			n.Path = e.Attributes.ASPath
 			if len(n.Path) > 0 {
-				n.ASN = n.Path[len(n.Path)-1]
+                                // Previously this was n.Path[len(n.Path)-1], but empirically, n.Path[0] seems to give the right results?
+				n.ASN = n.Path[0]
 			}
 			t.IPTree.AddByString(e.Prefix, n)
 		}
