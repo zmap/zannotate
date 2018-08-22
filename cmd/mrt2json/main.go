@@ -53,7 +53,7 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	zmrt.MrtRawIterate(inputFile, func(msg *mrt.MRTMessage) error {
+	err = zmrt.MrtRawIterate(inputFile, func(msg *mrt.MRTMessage) error {
 		if msg.Header.Type != mrt.TABLE_DUMPv2 {
 			log.Fatal("not an MRT TABLE_DUMPv2")
 		}
@@ -108,6 +108,9 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 		}
 		return nil
 	})
+	if err != nil {
+		log.Fatalf("Error processing input file '%s': %v", conf.InputFilePath, err)
+	}
 }
 
 func paths(conf *MRT2JsonGlobalConf, f *os.File) {
@@ -115,11 +118,14 @@ func paths(conf *MRT2JsonGlobalConf, f *os.File) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	zmrt.MrtPathIterate(inputFile, func(msg *zmrt.RIBEntry) {
+	err = zmrt.MrtPathIterate(inputFile, func(msg *zmrt.RIBEntry) {
 		json, _ := json.Marshal(msg)
 		f.WriteString(string(json))
 		f.WriteString("\n")
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func main() {

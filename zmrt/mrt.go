@@ -20,6 +20,7 @@ import (
 	"io"
 	"net"
 	"time"
+	"bufio"
 
 	"github.com/osrg/gobgp/packet/bgp"
 	"github.com/osrg/gobgp/packet/mrt"
@@ -100,22 +101,25 @@ func MrtSubTypeToName(t uint16) string {
 }
 
 func MrtRawIterate(raw io.Reader, cb mrtMessageCallback) error {
+	buffered := bufio.NewReader(raw)
+	var n int
+	var err error
 	for {
 		buf := make([]byte, mrt.MRT_COMMON_HEADER_LEN)
-		if _, err := raw.Read(buf); err == io.EOF {
+		if n, err = io.ReadFull(buffered, buf); err == io.EOF {
 			return nil
 		} else if err != nil {
 			return fmt.Errorf("failed to read: %s", err)
 		}
 		h := &mrt.MRTHeader{}
-		if err := h.DecodeFromBytes(buf); err != nil {
+		if err := h.DecodeFromBytes(buf[0:n]); err != nil {
 			return errors.New("failed to parse")
 		}
 		buf = make([]byte, h.Len)
-		if _, err := raw.Read(buf); err != nil {
+		if n, err = io.ReadFull(buffered, buf); err != nil {
 			return errors.New("failed to read")
 		}
-		if msg, err := mrt.ParseMRTBody(h, buf); err != nil {
+		if msg, err := mrt.ParseMRTBody(h, buf[0:n]); err != nil {
 			return fmt.Errorf("failed to parse: %s", err)
 		} else {
 			if err := cb(msg); err != nil {
