@@ -2,6 +2,9 @@ language: go
 go:
 - 1.8.1
 install:
+# TODO FIXME: Workaround for gobgp being updated in an incompatible manner.
+- go get github.com/osrg/gobgp/...
+- pushd $GOPATH/src/github.com/osrg/gobgp && git checkout 1b84b8145418398e7e68b81cdce506dcf81eec14 && popd
 - go get ./...
 - go get -t ./...
 test:
