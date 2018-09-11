@@ -5,8 +5,8 @@ import (
 	"flag"
 	"os"
 
-	"github.com/osrg/gobgp/packet/bgp"
-	"github.com/osrg/gobgp/packet/mrt"
+	"github.com/osrg/gobgp/pkg/packet/bgp"
+	"github.com/osrg/gobgp/pkg/packet/mrt"
 	log "github.com/sirupsen/logrus"
 	"github.com/zmap/zannotate/zmrt"
 )
