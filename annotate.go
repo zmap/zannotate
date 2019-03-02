@@ -16,7 +16,7 @@ package zannotate
 
 import (
 	"bufio"
-	"encoding/json"
+
 	"io"
 	"net"
 	"os"
@@ -24,6 +24,7 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/json-iterator/go"
 )
 
 // struct that is populated by the input reader and passed between types of worker threads
@@ -36,7 +37,7 @@ func jsonToInProcess(line string, ipFieldName string,
 	annotationFieldName string) inProcessIP {
 	var inParsed interface{}
 	var retv inProcessIP
-	if err := json.Unmarshal([]byte(line), &inParsed); err != nil {
+	if err := jsoniter.Unmarshal([]byte(line), &inParsed); err != nil {
 		log.Fatal("unable to parse input json record: ", line)
 	}
 	jsonMap := inParsed.(map[string]interface{})
@@ -120,7 +121,7 @@ func AnnotateOutputEncode(conf *GlobalConf, inChan <-chan inProcessIP,
 	outChan chan<- string, wg *sync.WaitGroup, i int) {
 	//
 	for rec := range inChan {
-		jsonRes, err := json.Marshal(rec.Out)
+		jsonRes, err := jsoniter.Marshal(rec.Out)
 		if err != nil {
 			log.Fatal("Unable to marshal JSON result", err)
 		}
