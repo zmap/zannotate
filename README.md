@@ -1,8 +1,8 @@
 ZAnnotate
 =========
 
-ZAnnotate is a golang-based utility that facilitates annotating large datasets
-with additional network metadata. Right now this includes:
+ZAnnotate is a Go utility that facilitates annotating large datasets
+with network metadata. Right now this includes:
 
  * Maxmind GeoIP2
  * AS/Routing Data (based on an MRT routing table)
