@@ -81,6 +81,11 @@ func main() {
 	if !annotationsPresent {
 		log.Fatal("You must select at least one annotation to perform")
 	}
+	// perform sanity checks
+	if conf.InputFileType == "ips" {
+		conf.JSONAnnotationFieldName = ""
+	}
+
 	// perform annotation
 	zannotate.DoAnnotation(&conf)
 }

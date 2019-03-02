@@ -34,7 +34,6 @@ type inProcessIP struct {
 
 func jsonToInProcess(line string, ipFieldName string,
 	annotationFieldName string) inProcessIP {
-	//
 	var inParsed interface{}
 	var retv inProcessIP
 	if err := json.Unmarshal([]byte(line), &inParsed); err != nil {
@@ -64,6 +63,7 @@ func ipToInProcess(line string) inProcessIP {
 		log.Fatal("invalid input IP address: ", line)
 	}
 	retv.Out = make(map[string]interface{})
+	retv.Out["ip"] = retv.Ip
 	return retv
 }
 
@@ -100,7 +100,6 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- string) {
 // from JSON/CSV into native golang objects
 func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string,
 	outChan chan<- inProcessIP, wg *sync.WaitGroup, i int) {
-	//
 	for line := range inChan {
 		l := strings.TrimSuffix(line, "\n")
 		if conf.InputFileType == "json" {
@@ -152,9 +151,9 @@ func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
 
 func AnnotateWorker(a Annotator, inChan <-chan inProcessIP,
 	outChan chan<- inProcessIP, fieldName string, wg *sync.WaitGroup, i int) {
-	//
 	name := a.GetFieldName()
 	log.Debug("annotate worker (", name, ") ", i, " started")
+	log.Debug("annotate worker (", name, ") ", i, " to use fieldname ", name)
 	if err := a.Initialize(); err != nil {
 		log.Fatal("error initializing annotate worker: ", err)
 	}

@@ -26,31 +26,31 @@ import (
 )
 
 type GeoIP2City struct {
-	Name      string `json:"name"`
-	GeoNameId uint   `json:"id"`
+	Name      string `json:"name,omitempty"`
+	GeoNameId uint   `json:"id,omitempty"`
 }
 
 type GeoIP2Country struct {
-	Name      string `json:"name"`
-	Code      string `json:"code"`
-	GeoNameId uint   `json:"id"`
+	Name      string `json:"name,omitempty"`
+	Code      string `json:"code,omitempty"`
+	GeoNameId uint   `json:"id,omitempty"`
 }
 
 type GeoIP2Postal struct {
-	Code string `json:"code"`
+	Code string `json:"code,omitempty"`
 }
 
 type GeoIP2LatLong struct {
-	AccuracyRadius uint16  `json:"accuracy_radius"`
-	Latitude       float64 `json:"latitude"`
-	Longitude      float64 `json:"longitude"`
-	MetroCode      uint    `json:"metro_code"`
-	TimeZone       string  `json:"time_zone"`
+	AccuracyRadius uint16  `json:"accuracy_radius,omitempty"`
+	Latitude       float64 `json:"latitude,omitempty"`
+	Longitude      float64 `json:"longitude,omitempty"`
+	MetroCode      uint    `json:"metro_code,omitempty"`
+	TimeZone       string  `json:"time_zone,omitempty"`
 }
 
 type GeoIP2Traits struct {
-	IsAnonymousProxy    bool `json:"is_anonymous_proxy"`
-	IsSatelliteProvider bool `json:"is_satellite_provider"`
+	IsAnonymousProxy    bool `json:"is_anonymous_proxy,omitempty"`
+	IsSatelliteProvider bool `json:"is_satellite_provider,omitempty"`
 }
 
 type GeoIP2Output struct {
