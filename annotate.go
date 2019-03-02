@@ -23,8 +23,8 @@ import (
 	"strings"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/json-iterator/go"
+	log "github.com/sirupsen/logrus"
 )
 
 // struct that is populated by the input reader and passed between types of worker threads
@@ -113,7 +113,7 @@ func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string,
 			outChan <- ipToInProcess(l)
 		}
 	}
-	log.Debugf("decode thread %i done", i)
+	log.Debug("decode thread ", i, " done")
 	wg.Done()
 }
 
