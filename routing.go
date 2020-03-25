@@ -75,7 +75,7 @@ func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
 		}
 		a.rlt.PopulateASnames(f)
 	}
-	a.rlt.PopulateFromMRT(f)
+	a.rlt.PopulateFromMRT(f, nil)
 	return nil
 }
 
