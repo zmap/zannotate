@@ -52,15 +52,35 @@ type RoutingLookupTree struct {
 	IPTree  *iptree.IPTree
 }
 
-func (t *RoutingLookupTree) PopulateFromMRT(raw io.Reader) {
+//PopulateFromMRT if replacementASN != nil then internal asn values will be replaced with that value
+func (t *RoutingLookupTree) PopulateFromMRT(raw io.Reader, replacementASN *uint32) {
 	t.IPTree = iptree.New()
 	zmrt.MrtPathIterate(raw, func(e *zmrt.RIBEntry) {
 		if e.AFI == bgp.AFI_IP {
 			var n ASTreeNode
 			n.Prefix = e.Prefix
+
+			// if replacementASN is set replace internal values with replacementASN
+			if replacementASN != nil {
+				for i, elt := range e.Attributes.ASPath {
+					if elt >= 64512 && elt <= 65534 {
+						e.Attributes.ASPath[i] = *replacementASN
+					}
+				}
+			}
+
 			n.Path = e.Attributes.ASPath
+
 			if len(n.Path) > 0 {
-				n.ASN = n.Path[len(n.Path)-1]
+				asn := n.Path[len(n.Path)-1]
+
+				// if origreplacementASNinASN is set and the asn is in the iBGP
+				// range replace it with replacementASN
+				if replacementASN != nil && asn >= 64512 && asn <= 65534 {
+					asn = *replacementASN
+				}
+
+				n.ASN = asn
 			}
 			t.IPTree.AddByString(e.Prefix, n)
 		}
@@ -80,6 +100,9 @@ func (t *RoutingLookupTree) SetASData(asn uint32, m interface{}) {
 	}
 	t.ASData[asn] = m
 }
+
+
+
 
 func (t *RoutingLookupTree) PopulateASnames(raw io.Reader) error {
 	d := json.NewDecoder(raw)
