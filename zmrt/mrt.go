@@ -15,12 +15,12 @@
 package zmrt
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"time"
-	"bufio"
 
 	"github.com/osrg/gobgp/pkg/packet/bgp"
 	"github.com/osrg/gobgp/pkg/packet/mrt"
@@ -281,7 +281,7 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 					//	fmt.Println(mprnlri)
 					//} else if palp, ok := a.(*bgp.NewPathAttributeMpUnreachNLRI); ok {
 				} else {
-					return fmt.Errorf("unsupported attribute type: ", a.GetType())
+					return fmt.Errorf("unsupported attribute type: %v", a.GetType())
 				}
 			}
 			cb(&out)
