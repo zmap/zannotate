@@ -101,9 +101,6 @@ func (t *RoutingLookupTree) SetASData(asn uint32, m interface{}) {
 	t.ASData[asn] = m
 }
 
-
-
-
 func (t *RoutingLookupTree) PopulateASnames(raw io.Reader) error {
 	d := json.NewDecoder(raw)
 	for {
