@@ -52,19 +52,51 @@ type RoutingLookupTree struct {
 	IPTree  *iptree.IPTree
 }
 
-func (t *RoutingLookupTree) PopulateFromMRT(raw io.Reader) {
+type PathFilter func([]uint32) []uint32
+
+func IdentityPathFilter(path []uint32) []uint32 { return path }
+
+func InternalBGPPathFilter(origin uint32) PathFilter {
+	return func(path []uint32) []uint32 {
+		out := make([]uint32, 0, len(path))
+		var previous uint32
+		previousWasReplaced := false
+		for _, asn := range path {
+			if asn <= 65534 && asn >= 64512 {
+				if previous != origin {
+					out = append(out, origin)
+					previous = origin
+				}
+				previousWasReplaced = true
+			} else {
+				if !previousWasReplaced || asn != previous {
+					out = append(out, asn)
+					previous = asn
+				}
+				previousWasReplaced = false
+			}
+		}
+		return out
+	}
+}
+
+func (t *RoutingLookupTree) PopulateFromMRTFiltered(raw io.Reader, pathFilter PathFilter) {
 	t.IPTree = iptree.New()
 	zmrt.MrtPathIterate(raw, func(e *zmrt.RIBEntry) {
 		if e.AFI == bgp.AFI_IP {
 			var n ASTreeNode
 			n.Prefix = e.Prefix
-			n.Path = e.Attributes.ASPath
+			n.Path = pathFilter(e.Attributes.ASPath)
 			if len(n.Path) > 0 {
 				n.ASN = n.Path[len(n.Path)-1]
 			}
 			t.IPTree.AddByString(e.Prefix, n)
 		}
 	})
+}
+
+func (t *RoutingLookupTree) PopulateFromMRT(raw io.Reader) {
+	t.PopulateFromMRTFiltered(raw, IdentityPathFilter)
 }
 
 func (t *RoutingLookupTree) SetASName(asn uint32, m ASNameNode) {
