@@ -8,6 +8,11 @@ import (
 	"net"
 )
 
+type GeoIPASNOutput struct {
+	ASN			uint 	`json:"asn,omitempty"`
+	ASNOrg		string	`json:"asn_org,omitempty"`
+}
+
 type GeoIPASNAnnotatorFactory struct {
 	BasePluginConf
 	Path 		string
@@ -84,9 +89,13 @@ func (anno *GeoIPASNAnnotator) GetFieldName() string {
 func (anno *GeoIPASNAnnotator) Annotate(ip net.IP) interface{} {
 	record, err := anno.Reader.ASN(ip)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		return &GeoIPASNOutput{}
 	}
-	return record
+	return &GeoIPASNOutput{
+		ASN: record.AutonomousSystemNumber,
+		ASNOrg: record.AutonomousSystemOrganization,
+	}
 }
 
 func (anno *GeoIPASNAnnotator) Close() error {
