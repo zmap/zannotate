@@ -9,20 +9,20 @@ import (
 )
 
 type GeoIPASNOutput struct {
-	ASN			uint 	`json:"asn,omitempty"`
-	ASNOrg		string	`json:"asn_org,omitempty"`
+	ASN    uint   `json:"asn,omitempty"`
+	ASNOrg string `json:"org,omitempty"`
 }
 
 type GeoIPASNAnnotatorFactory struct {
 	BasePluginConf
-	Path 		string
-	Mode		string
+	Path string
+	Mode string
 }
 
 type GeoIPASNAnnotator struct {
 	Factory *GeoIPASNAnnotatorFactory
-	Reader	*geoip2.Reader
-	Id		int
+	Reader  *geoip2.Reader
+	Id      int
 }
 
 func (fact *GeoIPASNAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
@@ -93,7 +93,7 @@ func (anno *GeoIPASNAnnotator) Annotate(ip net.IP) interface{} {
 		return &GeoIPASNOutput{}
 	}
 	return &GeoIPASNOutput{
-		ASN: record.AutonomousSystemNumber,
+		ASN:    record.AutonomousSystemNumber,
 		ASNOrg: record.AutonomousSystemOrganization,
 	}
 }
@@ -103,6 +103,6 @@ func (anno *GeoIPASNAnnotator) Close() error {
 }
 
 func init() {
-	f := new (GeoIPASNAnnotatorFactory)
+	f := new(GeoIPASNAnnotatorFactory)
 	RegisterAnnotator(f)
 }
