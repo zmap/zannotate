@@ -89,7 +89,6 @@ func (anno *GeoIPASNAnnotator) GetFieldName() string {
 func (anno *GeoIPASNAnnotator) Annotate(ip net.IP) interface{} {
 	record, err := anno.Reader.ASN(ip)
 	if err != nil {
-		log.Error(err)
 		return &GeoIPASNOutput{}
 	}
 	return &GeoIPASNOutput{
