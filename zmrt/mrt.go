@@ -24,6 +24,7 @@ import (
 
 	"github.com/osrg/gobgp/pkg/packet/bgp"
 	"github.com/osrg/gobgp/pkg/packet/mrt"
+	"github.com/sirupsen/logrus"
 )
 
 type mrtMessageCallback func(*mrt.MRTMessage) error
@@ -281,7 +282,7 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 					//	fmt.Println(mprnlri)
 					//} else if palp, ok := a.(*bgp.NewPathAttributeMpUnreachNLRI); ok {
 				} else {
-					return fmt.Errorf("unsupported attribute type: %v", a.GetType())
+					logrus.Debugf("unsupported attribute type: %v", a.GetType())
 				}
 			}
 			cb(&out)
