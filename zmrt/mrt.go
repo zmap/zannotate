@@ -24,6 +24,7 @@ import (
 
 	"github.com/osrg/gobgp/pkg/packet/bgp"
 	"github.com/osrg/gobgp/pkg/packet/mrt"
+	"github.com/sirupsen/logrus"
 )
 
 type mrtMessageCallback func(*mrt.MRTMessage) error
@@ -139,17 +140,18 @@ type From struct {
 }
 
 type Attributes struct {
-	Origin          string                          `json:"origin,omitempty"`
-	LocalPref       uint32                          `json:"local_pref,omitempty"`
-	Communities     []string                        `json:"communities,omitempty"`
-	NextHop         net.IP                          `json:"next_hop,omitempty"`
-	OriginatorId    net.IP                          `json:"originator_id,omitempty"`
-	ASPath          []uint32                        `json:"as_path,omitempty"`
-	AtomicAggregate bool                            `json:"atomic_aggregate"`
-	Aggregator      *From                           `json:"aggregator,omitempty"`
-	MultiExitDesc   uint32                          `json:"multi_exit_desc,omitempty"`
-	MpReachNLRI     *bgp.PathAttributeMpReachNLRI   `json:"mp_reach_nlri,omitempty"`
-	MpUnreachNLRI   *bgp.PathAttributeMpUnreachNLRI `json:"mp_unreach_nlri,omitempty"`
+	Origin           string                          `json:"origin,omitempty"`
+	LocalPref        uint32                          `json:"local_pref,omitempty"`
+	Communities      []string                        `json:"communities,omitempty"`
+	NextHop          net.IP                          `json:"next_hop,omitempty"`
+	OriginatorId     net.IP                          `json:"originator_id,omitempty"`
+	ASPath           []uint32                        `json:"as_path,omitempty"`
+	AtomicAggregate  bool                            `json:"atomic_aggregate"`
+	Aggregator       *From                           `json:"aggregator,omitempty"`
+	MultiExitDesc    uint32                          `json:"multi_exit_desc,omitempty"`
+	MpReachNLRI      *bgp.PathAttributeMpReachNLRI   `json:"mp_reach_nlri,omitempty"`
+	MpUnreachNLRI    *bgp.PathAttributeMpUnreachNLRI `json:"mp_unreach_nlri,omitempty"`
+	LargeCommunities []string                        `json:"large_communities,omitempty"`
 }
 
 type RIBEntry struct {
@@ -261,27 +263,31 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 					out.Attributes.MpReachNLRI = mprnlri
 				} else if mprnlri, ok := a.(*bgp.PathAttributeMpUnreachNLRI); ok {
 					out.Attributes.MpUnreachNLRI = mprnlri
+				} else if palc, ok := a.(*bgp.PathAttributeLargeCommunities); ok {
+					l := []string{}
+					for _, v := range palc.Values {
+						l = append(l, v.String())
+					}
+					out.Attributes.LargeCommunities = l
 					//} else if cl, ok := a.(*bgp.PathAttributeClusterList); ok {
-					//	fmt.Println(cl)
+					//    fmt.Println(cl)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeExtendedCommunities); ok {
-					//	fmt.Println(mprnlri)
+					//    fmt.Println(mprnlri)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeAs4Path); ok {
-					//	fmt.Println(mprnlri)
+					//    fmt.Println(mprnlri)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeAs4Aggregator); ok {
-					//	fmt.Println(mprnlri)
+					//    fmt.Println(mprnlri)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeTunnelEncap); ok {
-					//	fmt.Println(mprnlri)
+					//    fmt.Println(mprnlri)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributePmsiTunnel); ok {
-					//	fmt.Println(mprnlri)
+					//    fmt.Println(mprnlri)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeIP6ExtendedCommunities); ok {
-					//	fmt.Println(mprnlri)
+					//    fmt.Println(mprnlri)
 					//} else if mprnlri, ok := a.(*bgp.PathAttributeAigp); ok {
-					//	fmt.Println(mprnlri)
-					//} else if mprnlri, ok := a.(*bgp.PathAttributeLargeCommunities); ok {
-					//	fmt.Println(mprnlri)
+					//    fmt.Println(mprnlri)
 					//} else if palp, ok := a.(*bgp.NewPathAttributeMpUnreachNLRI); ok {
 				} else {
-					return fmt.Errorf("unsupported attribute type: %v", a.GetType())
+					logrus.Warnf("unsupported attribute type: %v", a.GetType())
 				}
 			}
 			cb(&out)
