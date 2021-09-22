@@ -66,7 +66,6 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 			out.Type = "peer_index_table"
 			for _, peer := range peerIndexTable.Peers {
 				var outPeer RawPeer
-				//outPeer.Type = peer.Type
 				outPeer.BgpId = peer.BgpId.String()
 				outPeer.IpAddress = peer.IpAddress.String()
 				outPeer.AS = peer.AS
@@ -79,8 +78,9 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 			f.WriteString(string(json))
 			f.WriteString("\n")
 		case mrt.RIB_IPV4_UNICAST, mrt.RIB_IPV6_UNICAST,
-			mrt.RIB_IPV4_MULTICAST, mrt.RIB_IPV6_MULTICAST, mrt.RIB_GENERIC:
-			//
+			mrt.RIB_IPV4_MULTICAST, mrt.RIB_IPV6_MULTICAST, mrt.RIB_GENERIC,
+			mrt.RIB_IPV4_MULTICAST_ADDPATH, mrt.RIB_IPV4_UNICAST_ADDPATH, mrt.RIB_IPV6_MULTICAST_ADDPATH,
+			mrt.RIB_IPV6_UNICAST_ADDPATH:
 			rib := msg.Body.(*mrt.Rib)
 			var out RawRib
 			out.SequenceNumber = rib.SequenceNumber
@@ -101,8 +101,6 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 			}
 			f.WriteString(string(json))
 			f.WriteString("\n")
-		case mrt.GEO_PEER_TABLE:
-		//geopeers := msg.Body.(*mrt.GeoPeerTable)
 		default:
 			log.Fatalf("unsupported subType: %v", msg.Header.SubType)
 		}

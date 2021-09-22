@@ -128,7 +128,6 @@ func MrtRawIterate(raw io.Reader, cb mrtMessageCallback) error {
 			}
 		}
 	}
-	return nil
 }
 
 type mrtPathCallback func(*RIBEntry)
@@ -189,10 +188,9 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 			return errors.New("not found PEER_INDEX_TABLE")
 		}
 		rib := msg.Body.(*mrt.Rib)
-		//nlri := rib.Prefix
 		for _, e := range rib.Entries {
 			if len(peers) < int(e.PeerIndex) {
-				return fmt.Errorf("invalid peer index: %d (PEER_INDEX_TABLE has only %d peers)\n",
+				return fmt.Errorf("invalid peer index: %d (PEER_INDEX_TABLE has only %d peers)",
 					e.PeerIndex, len(peers))
 			}
 			// create reasonable output
@@ -269,23 +267,6 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 						l = append(l, v.String())
 					}
 					out.Attributes.LargeCommunities = l
-					//} else if cl, ok := a.(*bgp.PathAttributeClusterList); ok {
-					//    fmt.Println(cl)
-					//} else if mprnlri, ok := a.(*bgp.PathAttributeExtendedCommunities); ok {
-					//    fmt.Println(mprnlri)
-					//} else if mprnlri, ok := a.(*bgp.PathAttributeAs4Path); ok {
-					//    fmt.Println(mprnlri)
-					//} else if mprnlri, ok := a.(*bgp.PathAttributeAs4Aggregator); ok {
-					//    fmt.Println(mprnlri)
-					//} else if mprnlri, ok := a.(*bgp.PathAttributeTunnelEncap); ok {
-					//    fmt.Println(mprnlri)
-					//} else if mprnlri, ok := a.(*bgp.PathAttributePmsiTunnel); ok {
-					//    fmt.Println(mprnlri)
-					//} else if mprnlri, ok := a.(*bgp.PathAttributeIP6ExtendedCommunities); ok {
-					//    fmt.Println(mprnlri)
-					//} else if mprnlri, ok := a.(*bgp.PathAttributeAigp); ok {
-					//    fmt.Println(mprnlri)
-					//} else if palp, ok := a.(*bgp.NewPathAttributeMpUnreachNLRI); ok {
 				} else {
 					logrus.Warnf("unsupported attribute type: %v", a.GetType())
 				}
