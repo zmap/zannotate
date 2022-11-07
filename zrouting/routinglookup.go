@@ -83,7 +83,7 @@ func InternalBGPPathFilter(origin uint32) PathFilter {
 func (t *RoutingLookupTree) PopulateFromMRTFiltered(raw io.Reader, pathFilter PathFilter) {
 	t.IPTree = iptree.New()
 	zmrt.MrtPathIterate(raw, func(e *zmrt.RIBEntry) {
-		if e.AFI == bgp.AFI_IP {
+		if e.AFI == bgp.AFI_IP || e.AFI == bgp.AFI_IP6 {
 			var n ASTreeNode
 			n.Prefix = e.Prefix
 			n.Path = pathFilter(e.Attributes.ASPath)
