@@ -10,5 +10,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/zmap/go-iptree v0.0.0-20210731043055-d4e632617837
+	golang.org/x/sys v0.2.0 // indirect
 	gotest.tools v2.2.0+incompatible
 )
