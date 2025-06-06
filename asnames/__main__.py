@@ -1,5 +1,5 @@
 import json
-import urllib2
+import requests
 import re
 
 class CIDRReportASNameDump(object):
@@ -22,9 +22,9 @@ class CIDRReportASNameDump(object):
 
     def fetch(self):
         if not self.__f:
-            self.__f = urllib2.urlopen(self.CIDR_REPORT_URL)
-        for line in self.__f.readlines():
-            m = self.ENTRY_REGEX.match(line)
+            self.__f = requests.get(self.CIDR_REPORT_URL)
+        for line in self.__f.iter_lines():
+            m = self.ENTRY_REGEX.match(line.decode("utf-8"))
             if m:
                 asn = m.groups()[0].rstrip().lstrip().replace('AS','')
                 # handle weird . notation for > 16-bit ASNs
@@ -54,13 +54,13 @@ class CIDRReportASNameDump(object):
                 else:
                     name, org = id_org, None
                 if name:
-                    name = unicode(name, errors="ignore").encode("utf-8", "ignore").replace('"', '')
+                    name = name.encode("utf-8", "ignore").decode("utf-8", "ignore").replace('"', '')
                 if country:
-                    country = unicode(country, errors="ignore").encode("utf-8", "ignore").replace('"', '')
+                    country = country.encode("utf-8", "ignore").decode("utf-8", "ignore").replace('"', '')
                 if org:
-                    org = unicode(org, errors="ignore").encode("utf-8", "ignore").replace('"', '')
+                    org = org.encode("utf-8", "ignore").decode("utf-8", "ignore").replace('"', '')
                 if description:
-                    description = unicode(description, errors="ignore").encode("utf-8", "ignore").replace('"', '')
+                    description = description.encode("utf-8", "ignore").decode("utf-8", "ignore").replace('"', '')
                 self.data[int(asn)] = {"asn":int(asn), "description":description, "country_code":country, "organization":org, "name":name}
 
     def lookup(self, number):
@@ -74,7 +74,7 @@ class CIDRReportASNameDump(object):
         return {"asn":number, "name":"UNKNOWN-%i" % number, "description":"Unknown AS (ASN:%i)" % number, "organization":"Unknown"}
 
     def iter(self):
-        for asn, info in self.data.iteritems():
+        for asn, info in self.data.items():
             yield info
 
 
@@ -82,7 +82,7 @@ def main():
     db = CIDRReportASNameDump()
     db.fetch()
     for r in db.iter():
-        print json.dumps(r)
+        print(json.dumps(r))
 
 if __name__ == "__main__":
     main()
