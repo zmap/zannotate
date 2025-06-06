@@ -1,9 +1,0 @@
-language: go
-go:
-- 1.13
-install:
-- go mod download
-- go build ./...
-test:
-- go test -v ./...
-
