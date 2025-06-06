@@ -16,11 +16,13 @@ package zrouting
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 
 	"github.com/osrg/gobgp/pkg/packet/bgp"
 	"github.com/zmap/go-iptree/iptree"
+
 	"github.com/zmap/zannotate/zmrt"
 )
 
@@ -80,9 +82,9 @@ func InternalBGPPathFilter(origin uint32) PathFilter {
 	}
 }
 
-func (t *RoutingLookupTree) PopulateFromMRTFiltered(raw io.Reader, pathFilter PathFilter) {
+func (t *RoutingLookupTree) PopulateFromMRTFiltered(raw io.Reader, pathFilter PathFilter) error {
 	t.IPTree = iptree.New()
-	zmrt.MrtPathIterate(raw, func(e *zmrt.RIBEntry) {
+	f := func(e *zmrt.RIBEntry) error {
 		if e.AFI == bgp.AFI_IP || e.AFI == bgp.AFI_IP6 {
 			var n ASTreeNode
 			n.Prefix = e.Prefix
@@ -90,13 +92,21 @@ func (t *RoutingLookupTree) PopulateFromMRTFiltered(raw io.Reader, pathFilter Pa
 			if len(n.Path) > 0 {
 				n.ASN = n.Path[len(n.Path)-1]
 			}
-			t.IPTree.AddByString(e.Prefix, n)
+			err := t.IPTree.AddByString(e.Prefix, n)
+			if err != nil {
+				return fmt.Errorf("could not add prefix %s to IP tree: %w", e.Prefix, err)
+			}
 		}
-	})
+		return nil
+	}
+	if err := zmrt.MrtPathIterate(raw, f); err != nil {
+		return fmt.Errorf("failed to iterate over MRT paths: %w", err)
+	}
+	return nil
 }
 
-func (t *RoutingLookupTree) PopulateFromMRT(raw io.Reader) {
-	t.PopulateFromMRTFiltered(raw, IdentityPathFilter)
+func (t *RoutingLookupTree) PopulateFromMRT(raw io.Reader) error {
+	return t.PopulateFromMRTFiltered(raw, IdentityPathFilter)
 }
 
 func (t *RoutingLookupTree) SetASName(asn uint32, m ASNameNode) {

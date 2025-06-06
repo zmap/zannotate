@@ -17,10 +17,12 @@ package zannotate
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"net"
 	"os"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zmap/zannotate/zrouting"
 )
 
@@ -73,9 +75,13 @@ func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
 		if err != nil {
 			return err
 		}
-		a.rlt.PopulateASnames(f)
+		if err = a.rlt.PopulateASnames(f); err != nil {
+			return fmt.Errorf("failed to populate AS names: %w", err)
+		}
 	}
-	a.rlt.PopulateFromMRT(f)
+	if err = a.rlt.PopulateFromMRT(f); err != nil {
+		return fmt.Errorf("failed to populate routing table from MRT: %w", err)
+	}
 	return nil
 }
 

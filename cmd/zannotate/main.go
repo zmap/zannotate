@@ -19,6 +19,7 @@ import (
 	"os"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zmap/zannotate"
 )
 
@@ -44,7 +45,10 @@ func main() {
 		annotator.AddFlags(flags)
 	}
 	// parse
-	flags.Parse(os.Args[1:])
+	err := flags.Parse(os.Args[1:])
+	if err != nil {
+		log.Fatalf("failed to parse input flags: %v", err)
+	}
 	if conf.LogFilePath != "" {
 		f, err := os.OpenFile(conf.LogFilePath, os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {

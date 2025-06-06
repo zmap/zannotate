@@ -130,7 +130,7 @@ func MrtRawIterate(raw io.Reader, cb mrtMessageCallback) error {
 	}
 }
 
-type mrtPathCallback func(*RIBEntry)
+type mrtPathCallback func(*RIBEntry) error
 
 type From struct {
 	AS      uint32 `json:"as,omitempty"`
@@ -271,7 +271,9 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 					logrus.Warnf("unsupported attribute type: %v", a.GetType())
 				}
 			}
-			cb(&out)
+			if err := cb(&out); err != nil {
+				return err
+			}
 		}
 		return nil
 	}); err != nil {

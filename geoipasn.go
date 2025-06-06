@@ -2,10 +2,11 @@ package zannotate
 
 import (
 	"flag"
+	"net"
+	"os"
+
 	"github.com/oschwald/geoip2-golang"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
-	"net"
 )
 
 type GeoIPASNOutput struct {
@@ -60,8 +61,9 @@ func (fact *GeoIPASNAnnotatorFactory) Close() error {
 }
 
 func (anno *GeoIPASNAnnotator) Initialize() error {
-	if anno.Factory.Mode == "memory" {
-		bytes, err := ioutil.ReadFile(anno.Factory.Path)
+	switch anno.Factory.Mode {
+	case "memory":
+		bytes, err := os.ReadFile(anno.Factory.Path)
 		if err != nil {
 			log.Fatal("unable to open maxmind geoIP ASN database (memory): ", err)
 		}
@@ -70,14 +72,14 @@ func (anno *GeoIPASNAnnotator) Initialize() error {
 			log.Fatal("unable to parse maxmind geoIP ASN database: ", err)
 		}
 		anno.Reader = db
-	} else if anno.Factory.Mode == "mmap" {
+	case "mmap":
 		db, err := geoip2.Open(anno.Factory.Path)
 		if err != nil {
 			log.Fatal("unable to load maxmind geoIP ASN database: ", err)
 		}
 		anno.Reader = db
-	} else {
-		log.Fatal("invalid GeoIP ASN mode")
+	default:
+		log.Fatal("unrecognized geoIP ASN mode: ", anno.Factory.Mode)
 	}
 	return nil
 }
