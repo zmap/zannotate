@@ -272,7 +272,7 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 				}
 			}
 			if err := cb(&out); err != nil {
-				return err
+				return fmt.Errorf("error in callback: %w", err)
 			}
 		}
 		return nil
