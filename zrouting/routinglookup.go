@@ -20,7 +20,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/osrg/gobgp/pkg/packet/bgp"
+	"github.com/osrg/gobgp/v4/pkg/packet/bgp"
 	"github.com/zmap/go-iptree/iptree"
 
 	"github.com/zmap/zannotate/zmrt"

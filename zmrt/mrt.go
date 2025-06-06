@@ -22,8 +22,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/osrg/gobgp/pkg/packet/bgp"
-	"github.com/osrg/gobgp/pkg/packet/mrt"
+	"github.com/osrg/gobgp/v4/pkg/packet/bgp"
+	"github.com/osrg/gobgp/v4/pkg/packet/mrt"
 	"github.com/sirupsen/logrus"
 )
 

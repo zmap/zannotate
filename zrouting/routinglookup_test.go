@@ -17,7 +17,7 @@ package zrouting
 import (
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 type pathFilterTest struct {
