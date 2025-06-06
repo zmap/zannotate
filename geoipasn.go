@@ -16,6 +16,7 @@ package zannotate
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	"os"
 
@@ -79,21 +80,21 @@ func (anno *GeoIPASNAnnotator) Initialize() error {
 	case "memory":
 		bytes, err := os.ReadFile(anno.Factory.Path)
 		if err != nil {
-			log.Fatal("unable to open maxmind geoIP ASN database (memory): ", err)
+			return fmt.Errorf("unable to open maxmind geoIP ASN database (memory): %w", err)
 		}
 		db, err := geoip2.FromBytes(bytes)
 		if err != nil {
-			log.Fatal("unable to parse maxmind geoIP ASN database: ", err)
+			return fmt.Errorf("unable to parse maxmind geoIP ASN database: %w", err)
 		}
 		anno.Reader = db
 	case "mmap":
 		db, err := geoip2.Open(anno.Factory.Path)
 		if err != nil {
-			log.Fatal("unable to load maxmind geoIP ASN database: ", err)
+			return fmt.Errorf("unable to load maxmind geoIP ASN database: %w", err)
 		}
 		anno.Reader = db
 	default:
-		log.Fatal("unrecognized geoIP ASN mode: ", anno.Factory.Mode)
+		return fmt.Errorf("unrecognized geoIP ASN mode: %s", anno.Factory.Mode)
 	}
 	return nil
 }

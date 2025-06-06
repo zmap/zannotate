@@ -46,7 +46,7 @@ jobs:
       - name: Sort Imports and gofmt
         run: |
           go install golang.org/x/tools/cmd/goimports@latest
-          output=$(goimports -d -local "github.com/zmap/zdns" ./)
+          output=$(goimports -d -local "github.com/zmap/zannotate" ./)
           if [ -n "$output" ]; then
             echo "goimports found issues:"
             echo "$output"

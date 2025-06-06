@@ -15,6 +15,7 @@
 package zannotate
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -121,7 +122,7 @@ func (a *GeoIP2AnnotatorFactory) MakeAnnotator(i int) Annotator {
 
 func (a *GeoIP2AnnotatorFactory) Initialize(conf *GlobalConf) error {
 	if a.Path == "" {
-		log.Fatal("no GeoIP2 database provided")
+		return errors.New("no GeoIP2 database provided")
 	}
 	log.Info("will add geoip2 using ", a.Path)
 	if a.RawInclude == "*" {

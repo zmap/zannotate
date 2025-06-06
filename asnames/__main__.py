@@ -53,29 +53,13 @@ class CIDRReportASNameDump(object):
                 else:
                     name, org = id_org, None
                 if name:
-                    name = (
-                        name.encode("utf-8", "ignore")
-                        .decode("utf-8", "ignore")
-                        .replace('"', "")
-                    )
+                    name = self.sanitize(name)
                 if country:
-                    country = (
-                        country.encode("utf-8", "ignore")
-                        .decode("utf-8", "ignore")
-                        .replace('"', "")
-                    )
+                    country = self.sanitize(country)
                 if org:
-                    org = (
-                        org.encode("utf-8", "ignore")
-                        .decode("utf-8", "ignore")
-                        .replace('"', "")
-                    )
+                    org = self.sanitize(org)
                 if description:
-                    description = (
-                        description.encode("utf-8", "ignore")
-                        .decode("utf-8", "ignore")
-                        .replace('"', "")
-                    )
+                    description = self.sanitize(description)
                 self.data[int(asn)] = {
                     "asn": int(asn),
                     "description": description,
@@ -83,6 +67,16 @@ class CIDRReportASNameDump(object):
                     "organization": org,
                     "name": name,
                 }
+
+    def sanitize(self, data):
+        """Sanitize the data to ensure it is in a consistent format."""
+        if isinstance(data, str):
+            return (
+                data.encode("utf-8", "ignore")
+                .decode("utf-8", "ignore")
+                .replace('"', "")
+            )
+        return data
 
     def lookup(self, number):
         number = int(number)
