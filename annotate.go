@@ -23,7 +23,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/json-iterator/go"
+	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -141,10 +141,16 @@ func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
 		if err != nil {
 			log.Fatal("unable to open output file:", err.Error())
 		}
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Errorf("unable to close output file: %v", err)
+			}
+		}()
 	}
 	for n := range out {
-		f.WriteString(n + "\n")
+		if _, err := f.WriteString(n + "\n"); err != nil {
+			log.Fatalf("unable to write to output file: %v", err)
+		}
 	}
 	wg.Done()
 	log.Debug("write thread finished")

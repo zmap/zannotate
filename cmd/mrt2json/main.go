@@ -1,13 +1,29 @@
+/*
+ * ZAnnotate Copyright 2025 Regents of the University of Michigan
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package main
 
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 
-	"github.com/osrg/gobgp/pkg/packet/bgp"
-	"github.com/osrg/gobgp/pkg/packet/mrt"
+	"github.com/osrg/gobgp/v4/pkg/packet/bgp"
+	"github.com/osrg/gobgp/v4/pkg/packet/mrt"
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zmap/zannotate/zmrt"
 )
 
@@ -45,7 +61,7 @@ type RawRib struct {
 	SequenceNumber uint32                  `json:"sequence_number"`
 	Prefix         bgp.AddrPrefixInterface `json:"prefix"`
 	Entries        []*RawRibEntry          `json:"entries"`
-	RouteFamily    bgp.RouteFamily         `json:"route_family"`
+	RouteFamily    bgp.Family              `json:"route_family"`
 }
 
 func raw(conf *MRT2JsonGlobalConf, f *os.File) {
@@ -75,8 +91,9 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 			if err != nil {
 				log.Fatal("unable to json marshal peer table")
 			}
-			f.WriteString(string(json))
-			f.WriteString("\n")
+			if _, err := f.WriteString(string(json) + "\n"); err != nil {
+				log.Fatalf("error writing to output file: %v", err)
+			}
 		case mrt.RIB_IPV4_UNICAST, mrt.RIB_IPV6_UNICAST,
 			mrt.RIB_IPV4_MULTICAST, mrt.RIB_IPV6_MULTICAST, mrt.RIB_GENERIC,
 			mrt.RIB_IPV4_MULTICAST_ADDPATH, mrt.RIB_IPV4_UNICAST_ADDPATH, mrt.RIB_IPV6_MULTICAST_ADDPATH,
@@ -85,7 +102,7 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 			var out RawRib
 			out.SequenceNumber = rib.SequenceNumber
 			out.Prefix = rib.Prefix
-			out.RouteFamily = rib.RouteFamily
+			out.RouteFamily = rib.Family
 			for _, entry := range rib.Entries {
 				var ribOut RawRibEntry
 				ribOut.PeerIndex = entry.PeerIndex
@@ -95,12 +112,13 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 				out.Entries = append(out.Entries, &ribOut)
 			}
 			out.SubType = zmrt.MrtSubTypeToName(msg.Header.SubType)
-			json, err := json.Marshal(out)
+			jsonData, err := json.Marshal(out)
 			if err != nil {
 				log.Fatal("unable to json marshal peer table")
 			}
-			f.WriteString(string(json))
-			f.WriteString("\n")
+			if _, err = f.WriteString(string(jsonData) + "\n"); err != nil {
+				log.Fatalf("error writing to output file: %v", err)
+			}
 		default:
 			log.Fatalf("unsupported subType: %v", msg.Header.SubType)
 		}
@@ -116,10 +134,13 @@ func paths(conf *MRT2JsonGlobalConf, f *os.File) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = zmrt.MrtPathIterate(inputFile, func(msg *zmrt.RIBEntry) {
-		json, _ := json.Marshal(msg)
-		f.WriteString(string(json))
-		f.WriteString("\n")
+	err = zmrt.MrtPathIterate(inputFile, func(msg *zmrt.RIBEntry) error {
+		var marshalledData []byte
+		marshalledData, err = json.Marshal(msg)
+		if _, err := f.WriteString(string(marshalledData) + "\n"); err != nil {
+			return fmt.Errorf("error writing to output file: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -138,7 +159,9 @@ func main() {
 	if len(os.Args) < 2 {
 		log.Fatalf("No command provided. Must choose raw or entries")
 	}
-	flags.Parse(os.Args[2:])
+	if err := flags.Parse(os.Args[2:]); err != nil {
+		log.Fatalf("failed to parse input flags: %v", err)
+	}
 
 	if conf.LogFilePath != "" {
 		f, err := os.OpenFile(conf.LogFilePath, os.O_WRONLY|os.O_CREATE, 0666)
@@ -174,14 +197,18 @@ func main() {
 		if err != nil {
 			log.Fatal("unable to open output file: ", err.Error())
 		}
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Errorf("unable to close output file: %v", err)
+			}
+		}()
 	}
-	if os.Args[1] == "raw" {
+	switch os.Args[1] {
+	case "raw":
 		raw(&conf, f)
-	} else if os.Args[1] == "entries" {
+	case "entries":
 		paths(&conf, f)
-	} else {
+	default:
 		log.Fatal("invalid command")
 	}
-
 }

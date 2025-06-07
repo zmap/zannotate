@@ -1,0 +1,81 @@
+name: CI
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, ready_for_review, synchronize]
+  workflow_dispatch:
+
+jobs:
+  check-license:
+    concurrency:
+      group: ci-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check for ZAnnotate License Header
+        run: |
+          ./.github/workflows/check_license.sh
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: Build
+        run: |
+          go version
+          make zannotate
+      - name: Unit Tests
+        run: make test
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: Sort Imports and gofmt
+        run: |
+          go install golang.org/x/tools/cmd/goimports@latest
+          output=$(goimports -d -local "github.com/zmap/zannotate" ./)
+          if [ -n "$output" ]; then
+            echo "goimports found issues:"
+            echo "$output"
+            exit 1
+          else
+            echo "No issues found by goimports."
+          fi
+          output=$(gofmt -d .)
+            if [ -n "$output" ]; then
+                echo "gofmt found issues:"
+                echo "$output"
+                exit 1
+            else
+                echo "No issues found by gofmt."
+            fi
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8.0.0
+
+      # Set up Python for black
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'  # Adjust to your required Python version
+
+      # Install black
+      - name: Install black
+        run: pip3 install black
+
+      # Check Python files with black
+      - name: Check Python Code Formatting
+        run: |
+          black --check .

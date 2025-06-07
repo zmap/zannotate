@@ -15,10 +15,11 @@
 package zannotate
 
 import (
+	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/oschwald/geoip2-golang"
@@ -60,7 +61,7 @@ type GeoIP2Output struct {
 	Postal             *GeoIP2Postal  `json:"postal,omitempty"`
 	LatLong            *GeoIP2LatLong `json:"latlong,omitempty"`
 	RepresentedCountry *GeoIP2Country `json:"represented_country,omitempty"`
-	RegisteredCountry  *GeoIP2Country `json:"represented_country,omitempty"`
+	RegisteredCountry  *GeoIP2Country `json:"registered_country,omitempty"`
 	Traits             *GeoIP2Traits  `json:"metadata,omitempty"`
 }
 
@@ -121,7 +122,7 @@ func (a *GeoIP2AnnotatorFactory) MakeAnnotator(i int) Annotator {
 
 func (a *GeoIP2AnnotatorFactory) Initialize(conf *GlobalConf) error {
 	if a.Path == "" {
-		log.Fatal("no GeoIP2 database provided")
+		return errors.New("no GeoIP2 database provided")
 	}
 	log.Info("will add geoip2 using ", a.Path)
 	if a.RawInclude == "*" {
@@ -159,7 +160,7 @@ func (a *GeoIP2AnnotatorFactory) Initialize(conf *GlobalConf) error {
 			case "represented_country":
 				a.IncludeRepresentedCountry = true
 			default:
-				return fmt.Errorf("Invalid GeoIP2 field: %s", ps)
+				return fmt.Errorf("invalid GeoIP2 field: %s", ps)
 			}
 		}
 	}
@@ -173,8 +174,9 @@ func (a *GeoIP2AnnotatorFactory) Close() error {
 // GeoIP2 Annotator (Per-Worker)
 
 func (a *GeoIP2Annotator) Initialize() error {
-	if a.Factory.Mode == "memory" {
-		bytes, err := ioutil.ReadFile(a.Factory.Path)
+	switch a.Factory.Mode {
+	case "memory":
+		bytes, err := os.ReadFile(a.Factory.Path)
 		if err != nil {
 			log.Fatal("unable to open maxmind geoIP2 database (memory): ", err)
 		}
@@ -183,13 +185,13 @@ func (a *GeoIP2Annotator) Initialize() error {
 			log.Fatal("unable to parse maxmind geoIP2 database: ", err)
 		}
 		a.Reader = db
-	} else if a.Factory.Mode == "mmap" {
+	case "mmap":
 		db, err := geoip2.Open(a.Factory.Path)
 		if err != nil {
 			log.Fatal("unable to load maxmind geoIP2 database: ", err)
 		}
 		a.Reader = db
-	} else {
+	default:
 		log.Fatal("invalid GeoIP mode")
 	}
 	return nil
@@ -198,27 +200,27 @@ func (a *GeoIP2Annotator) Initialize() error {
 func (a *GeoIP2Annotator) GeoIP2FillStruct(in *geoip2.City) *GeoIP2Output {
 	language := a.Factory.Language
 	var out GeoIP2Output
-	if a.Factory.IncludeCity == true {
+	if a.Factory.IncludeCity {
 		var city GeoIP2City
 		out.City = &city
 		out.City.Name = in.City.Names[language]
 		out.City.GeoNameId = in.City.GeoNameID
 	}
-	if a.Factory.IncludeCountry == true {
+	if a.Factory.IncludeCountry {
 		var country GeoIP2Country
 		out.Country = &country
 		out.Country.Name = in.Country.Names[language]
 		out.Country.GeoNameId = in.Country.GeoNameID
 		out.Country.Code = in.Country.IsoCode
 	}
-	if a.Factory.IncludeContinent == true {
+	if a.Factory.IncludeContinent {
 		var country GeoIP2Country
 		out.Continent = &country
 		out.Continent.Name = in.Continent.Names[language]
 		out.Continent.GeoNameId = in.Continent.GeoNameID
 		out.Continent.Code = in.Continent.Code
 	}
-	if a.Factory.IncludeLatLong == true {
+	if a.Factory.IncludeLatLong {
 		var latlong GeoIP2LatLong
 		out.LatLong = &latlong
 		out.LatLong.AccuracyRadius = in.Location.AccuracyRadius
@@ -227,25 +229,25 @@ func (a *GeoIP2Annotator) GeoIP2FillStruct(in *geoip2.City) *GeoIP2Output {
 		out.LatLong.MetroCode = in.Location.MetroCode
 		out.LatLong.TimeZone = in.Location.TimeZone
 	}
-	if a.Factory.IncludePostal == true {
+	if a.Factory.IncludePostal {
 		var postal GeoIP2Postal
 		out.Postal = &postal
 		out.Postal.Code = in.Postal.Code
 	}
-	if a.Factory.IncludeTraits == true {
+	if a.Factory.IncludeTraits {
 		var traits GeoIP2Traits
 		out.Traits = &traits
 		out.Traits.IsAnonymousProxy = in.Traits.IsAnonymousProxy
 		out.Traits.IsSatelliteProvider = in.Traits.IsSatelliteProvider
 	}
-	if a.Factory.IncludeRegisteredCountry == true {
+	if a.Factory.IncludeRegisteredCountry {
 		var country GeoIP2Country
 		out.RegisteredCountry = &country
 		out.RegisteredCountry.Name = in.RegisteredCountry.Names[language]
 		out.RegisteredCountry.GeoNameId = in.RegisteredCountry.GeoNameID
 		out.RegisteredCountry.Code = in.RegisteredCountry.IsoCode
 	}
-	if a.Factory.IncludeRepresentedCountry == true {
+	if a.Factory.IncludeRepresentedCountry {
 		var country GeoIP2Country
 		out.RepresentedCountry = &country
 		out.RepresentedCountry.Name = in.RepresentedCountry.Names[language]
@@ -268,8 +270,7 @@ func (a *GeoIP2Annotator) Annotate(ip net.IP) interface{} {
 }
 
 func (a *GeoIP2Annotator) Close() error {
-	a.Reader.Close()
-	return nil
+	return a.Reader.Close()
 }
 
 func init() {

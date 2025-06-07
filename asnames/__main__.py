@@ -1,6 +1,7 @@
 import json
-import urllib2
+import requests
 import re
+
 
 class CIDRReportASNameDump(object):
     """ASNNameDump represents the full list of
@@ -10,11 +11,9 @@ class CIDRReportASNameDump(object):
     CIDR_REPORT_URL = "http://www.cidr-report.org/as2.0/autnums.html"
     ENTRY_REGEX = re.compile("^<a href.*>(.*)</a>(.*)$")
 
-    OVERRIDES = {
-    }
+    OVERRIDES = {}
 
-    ADDITIONAL_NAMES = {
-    }
+    ADDITIONAL_NAMES = {}
 
     def __init__(self):
         self.__f = None
@@ -22,14 +21,14 @@ class CIDRReportASNameDump(object):
 
     def fetch(self):
         if not self.__f:
-            self.__f = urllib2.urlopen(self.CIDR_REPORT_URL)
-        for line in self.__f.readlines():
-            m = self.ENTRY_REGEX.match(line)
+            self.__f = requests.get(self.CIDR_REPORT_URL)
+        for line in self.__f.iter_lines():
+            m = self.ENTRY_REGEX.match(line.decode("utf-8"))
             if m:
-                asn = m.groups()[0].rstrip().lstrip().replace('AS','')
+                asn = m.groups()[0].rstrip().lstrip().replace("AS", "")
                 # handle weird . notation for > 16-bit ASNs
-                if '.' in asn:
-                    b, s = asn.split('.')
+                if "." in asn:
+                    b, s = asn.split(".")
                     asn = (int(b) << 16) + int(s)
                 else:
                     asn = int(asn)
@@ -41,27 +40,43 @@ class CIDRReportASNameDump(object):
                 elif len(description) > 4 and description[-4] == ",":
                     id_org = description[:-4].strip()
                     country = description[-3:].strip()
-                else: # no country present.
+                else:  # no country present.
                     id_org = description
                     country = None
                 # this format is terrible, but we'll try to parse it out anyway.
                 if " - " in id_org and id_org.split(" - ", 1)[0].isupper():
                     name, org = id_org.split(" - ", 1)
-                #elif " " in id_org and id_org.split(" ", 1)[0].isupper():
+                # elif " " in id_org and id_org.split(" ", 1)[0].isupper():
                 #    name, org = id_org.split(" ", 1)
                 elif "-" in id_org and id_org.split("-", 1)[0].isupper():
                     name, org = id_org.split("-", 1)
                 else:
                     name, org = id_org, None
                 if name:
-                    name = unicode(name, errors="ignore").encode("utf-8", "ignore").replace('"', '')
+                    name = self.sanitize(name)
                 if country:
-                    country = unicode(country, errors="ignore").encode("utf-8", "ignore").replace('"', '')
+                    country = self.sanitize(country)
                 if org:
-                    org = unicode(org, errors="ignore").encode("utf-8", "ignore").replace('"', '')
+                    org = self.sanitize(org)
                 if description:
-                    description = unicode(description, errors="ignore").encode("utf-8", "ignore").replace('"', '')
-                self.data[int(asn)] = {"asn":int(asn), "description":description, "country_code":country, "organization":org, "name":name}
+                    description = self.sanitize(description)
+                self.data[int(asn)] = {
+                    "asn": int(asn),
+                    "description": description,
+                    "country_code": country,
+                    "organization": org,
+                    "name": name,
+                }
+
+    def sanitize(self, data):
+        """Sanitize the data to ensure it is in a consistent format."""
+        if isinstance(data, str):
+            return (
+                data.encode("utf-8", "ignore")
+                .decode("utf-8", "ignore")
+                .replace('"', "")
+            )
+        return data
 
     def lookup(self, number):
         number = int(number)
@@ -71,10 +86,15 @@ class CIDRReportASNameDump(object):
             return self.data[number]
         if number in self.ADDITIONAL_NAMES:
             return self.ADDITIONAL_NAMES[number]
-        return {"asn":number, "name":"UNKNOWN-%i" % number, "description":"Unknown AS (ASN:%i)" % number, "organization":"Unknown"}
+        return {
+            "asn": number,
+            "name": "UNKNOWN-%i" % number,
+            "description": "Unknown AS (ASN:%i)" % number,
+            "organization": "Unknown",
+        }
 
     def iter(self):
-        for asn, info in self.data.iteritems():
+        for asn, info in self.data.items():
             yield info
 
 
@@ -82,7 +102,8 @@ def main():
     db = CIDRReportASNameDump()
     db.fetch()
     for r in db.iter():
-        print json.dumps(r)
+        print(json.dumps(r))
+
 
 if __name__ == "__main__":
     main()
