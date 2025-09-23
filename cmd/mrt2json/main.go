@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/osrg/gobgp/v4/pkg/packet/bgp"
-	"github.com/osrg/gobgp/v4/pkg/packet/mrt"
+	"github.com/osrg/gobgp/v3/pkg/packet/bgp"
+	"github.com/osrg/gobgp/v3/pkg/packet/mrt"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/zmap/zannotate/zmrt"
