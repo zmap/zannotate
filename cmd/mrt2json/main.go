@@ -61,7 +61,7 @@ type RawRib struct {
 	SequenceNumber uint32                  `json:"sequence_number"`
 	Prefix         bgp.AddrPrefixInterface `json:"prefix"`
 	Entries        []*RawRibEntry          `json:"entries"`
-	RouteFamily    bgp.Family              `json:"route_family"`
+	RouteFamily    bgp.RouteFamily         `json:"route_family"`
 }
 
 func raw(conf *MRT2JsonGlobalConf, f *os.File) {
@@ -102,7 +102,7 @@ func raw(conf *MRT2JsonGlobalConf, f *os.File) {
 			var out RawRib
 			out.SequenceNumber = rib.SequenceNumber
 			out.Prefix = rib.Prefix
-			out.RouteFamily = rib.Family
+			out.RouteFamily = rib.RouteFamily
 			for _, entry := range rib.Entries {
 				var ribOut RawRibEntry
 				ribOut.PeerIndex = entry.PeerIndex
