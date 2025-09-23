@@ -6,7 +6,7 @@ toolchain go1.24.4
 
 require (
 	github.com/json-iterator/go v1.1.12
-	github.com/oschwald/geoip2-golang v1.11.0
+	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/osrg/gobgp/v4 v4.0.0-20250606141535-bfa40aa58ac3
 	github.com/sirupsen/logrus v1.9.3
 	github.com/zmap/go-iptree v0.0.0-20210731043055-d4e632617837
