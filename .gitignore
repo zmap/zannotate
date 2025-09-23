@@ -2,3 +2,7 @@
 *.mmdb
 **/venv/*
 **/__pycache__/*
+# zannotate binary
+zannotate
+# IDE Files
+**/.DS_Store
