@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zmap/dns"
@@ -34,6 +35,7 @@ type RDNSAnnotatorFactory struct {
 	BasePluginConf
 	RawResolvers string
 	zdnsConfig   *zdns.ResolverConfig
+	timeoutSecs  int
 }
 
 type RDNSAnnotator struct {
@@ -53,6 +55,7 @@ func (a *RDNSAnnotatorFactory) MakeAnnotator(i int) Annotator {
 
 func (a *RDNSAnnotatorFactory) Initialize(conf *GlobalConf) error {
 	a.zdnsConfig = zdns.NewResolverConfig()
+	a.zdnsConfig.NetworkTimeout = time.Second * 5
 	if len(strings.TrimSpace(a.RawResolvers)) > 0 {
 		// Parse and Validate the User-Specified Resolvers
 		// 1. split on comma
@@ -99,6 +102,7 @@ func (a *RDNSAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "rdns", false, "reverse dns lookup")
 	flags.StringVar(&a.RawResolvers, "rdns-dns-servers", "", "list of DNS servers to use for DNS lookups, comma-separated IP list. If empty, will use system defaults")
 	flags.IntVar(&a.Threads, "rdns-threads", 100, "how many reverse dns threads")
+	flags.IntVar(&a.timeoutSecs, "rdns-timeout", 2, "timeout for each rdns query, in seconds")
 }
 
 // RDNS Annotator (Per-Worker)
@@ -140,6 +144,12 @@ func (a *RDNSAnnotator) Annotate(ip net.IP) interface{} {
 	output.DomainNames = make([]string, 0, len(res.Answers))
 	for _, answer := range res.Answers {
 		if castAns, ok := answer.(zdns.Answer); ok {
+			// Sometimes, CNAME records are returned in addition to PTR records. We'll ignore all non-PTR records.
+			// This replicates the behavior of Go's net.LookupAddr
+			// TODO Phillip - confirm that this is the desired behavior or if we should return CNAMEs as well
+			if castAns.Type != "PTR" {
+				continue
+			}
 			// remove trailing period from domain name, ex: example.com. -> example.com
 			output.DomainNames = append(output.DomainNames, strings.TrimSuffix(castAns.Answer, "."))
 		}
