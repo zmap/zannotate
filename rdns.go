@@ -27,9 +27,7 @@ import (
 )
 
 type RDNSOutput struct {
-	DomainNames []string `json:"domain_names, omitempty"`
-	Status      string   `json:"status,omitempty"`
-	Error       string   `json:"error,omitempty"`
+	DomainNames []string `json:"domain_names"`
 }
 
 type RDNSAnnotatorFactory struct {
@@ -117,24 +115,28 @@ func (a *RDNSAnnotator) GetFieldName() string {
 	return "rdns"
 }
 
+// Annotate performs a reverse DNS lookup for the given IP address and returns the results.
+// If an error occurs or a lookup fails, it returns nil
 func (a *RDNSAnnotator) Annotate(ip net.IP) interface{} {
 	q := zdns.Question{
 		Type:  dns.TypePTR,
 		Class: dns.ClassINET,
 		Name:  ip.String(),
 	}
-	output := RDNSOutput{}
 	res, _, status, err := a.zdnsResolver.ExternalLookup(context.Background(), &q, nil)
-	// TODO Phillip - check if the other modules handle errors by including the error in output, or failing silently as a best-effort
 	if err != nil {
-		output.Error = err.Error()
-		return output
+		log.Debug("encountered error when resolving rdns for ", ip.String(), ": ", err)
+		return nil
+	}
+	if status != zdns.StatusNoError {
+		log.Debug("could not resolve rdns for ", ip.String(), " with status: ", status)
+		return nil
 	}
 	if res == nil {
 		// this should never happen, but this will be more helpful than a panic
 		log.Fatalf("zdns returned a nil result without erroring, zannotate cannot continue")
 	}
-	output.Status = string(status)
+	var output RDNSOutput
 	output.DomainNames = make([]string, 0, len(res.Answers))
 	for _, answer := range res.Answers {
 		if castAns, ok := answer.(zdns.Answer); ok {
