@@ -131,19 +131,22 @@ func (a *RDNSAnnotator) Annotate(ip net.IP) interface{} {
 		return output
 	}
 	if res == nil {
-		log.Fatalf("zdns returned a nil result without erroring, zannotate cannot continue") // this should never happen, but this will be more helpful than a panic
+		// this should never happen, but this will be more helpful than a panic
+		log.Fatalf("zdns returned a nil result without erroring, zannotate cannot continue")
 	}
 	output.Status = string(status)
 	output.DomainNames = make([]string, 0, len(res.Answers))
 	for _, answer := range res.Answers {
 		if castAns, ok := answer.(zdns.Answer); ok {
-			output.DomainNames = append(output.DomainNames, strings.TrimSuffix(castAns.Answer, ".")) // remove trailing period
+			// remove trailing period from domain name, ex: example.com. -> example.com
+			output.DomainNames = append(output.DomainNames, strings.TrimSuffix(castAns.Answer, "."))
 		}
 	}
 	return output
 }
 
 func (a *RDNSAnnotator) Close() error {
+	a.zdnsResolver.Close()
 	return nil
 }
 
