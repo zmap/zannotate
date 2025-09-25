@@ -53,7 +53,7 @@ func (a *RDNSAnnotatorFactory) MakeAnnotator(i int) Annotator {
 	return &v
 }
 
-func (a *RDNSAnnotatorFactory) Initialize(conf *GlobalConf) error {
+func (a *RDNSAnnotatorFactory) Initialize(_ *GlobalConf) error {
 	a.zdnsConfig = zdns.NewResolverConfig()
 	a.zdnsConfig.NetworkTimeout = time.Second * 5
 	if len(strings.TrimSpace(a.RawResolvers)) > 0 {
