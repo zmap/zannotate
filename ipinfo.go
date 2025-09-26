@@ -20,8 +20,11 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strconv"
+	"strings"
 
 	"github.com/oschwald/maxminddb-golang/v2"
+	log "github.com/sirupsen/logrus"
 )
 
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
@@ -30,14 +33,13 @@ import (
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
 type IPInfoOutput struct {
-	Network       net.IPNet `json:"network"`
-	Country       string    `json:"country"`
-	CountryCode   string    `json:"country_code"`
-	Continent     string    `json:"continent"`
-	ContinentCode string    `json:"continent_code"`
-	ASN           int       `json:"asn"`
-	ASName        string    `json:"as_name"`
-	ASDomain      string    `json:"as_domain"`
+	Country       string `json:"country,omitempty"`
+	CountryCode   string `json:"country_code,omitempty"`
+	Continent     string `json:"continent,omitempty"`
+	ContinentCode string `json:"continent_code,omitempty"`
+	ASN           int    `json:"asn,omitempty"`
+	ASName        string `json:"as_name,omitempty"`
+	ASDomain      string `json:"as_domain,omitempty"`
 }
 
 type IPInfoAnnotatorFactory struct {
@@ -105,23 +107,61 @@ func (a *IPInfoAnnotator) GetFieldName() string {
 	return "ipinfo"
 }
 
-// TODO Phillip
-// Optimizations
-// Check out Custom High-Performance Unmarshalling
-// https://pkg.go.dev/github.com/oschwald/maxminddb-golang/v2#section-readme
-func (a *IPInfoAnnotator) Annotate(inputIP net.IP) interface{} {
-	var ip netip.Addr // MaxMind DB Reader requires a netip.IP object
-	if ipv4IP := inputIP.To4(); ipv4IP != nil {
-		ip = netip.AddrFrom4([4]byte(ipv4IP))
-	} else if ipv6IP := inputIP.To16(); ipv6IP != nil {
-		ip = netip.AddrFrom16([16]byte(ipv6IP))
+// IPInfo Lite Tier Record
+type liteRecord struct {
+	Country       string `maxminddb:"country"`
+	CountryCode   string `maxminddb:"country_code"`
+	Continent     string `maxminddb:"continent"`
+	ContinentCode string `maxminddb:"continent_code"`
+	ASN           string `maxminddb:"asn"`
+	ASName        string `maxminddb:"as_name"`
+	ASDomain      string `maxminddb:"as_domain"`
+}
+
+// Convert the liteRecord to the output format
+func (lite *liteRecord) toIPInfoOutput() *IPInfoOutput {
+	if lite == nil {
+		return nil
 	}
-	if !ip.IsValid() {
+	out := &IPInfoOutput{
+		Country:       lite.Country,
+		CountryCode:   lite.CountryCode,
+		Continent:     lite.Continent,
+		ContinentCode: lite.ContinentCode,
+		ASName:        lite.ASName,
+		ASDomain:      lite.ASDomain,
+	}
+	var err error
+	const AsPrefix = "AS"
+	trimmedPrefix, _ := strings.CutPrefix(lite.ASN, AsPrefix)
+	out.ASN, err = strconv.Atoi(trimmedPrefix)
+	if err != nil {
+		out.ASN = 0 // omit-empty will not output this field
+	}
+	return out
+}
+
+func (a *IPInfoAnnotator) Annotate(inputIP net.IP) interface{} {
+	ip, err := netip.ParseAddr(inputIP.String())
+	if err != nil {
 		return nil // not a valid IP address, nothing to be done
 	}
-	var record any
-	_ = a.Factory.db.Lookup(ip).Decode(&record)
 
+	// IPInfo has multiple tiers of access. To deal with this and to be resilient to DB changes,
+	// we'll attempt to decode into a custom struct first, then fallback to a generic any type.
+	var out *liteRecord
+	if _ = a.Factory.db.Lookup(ip).Decode(&out); out != nil {
+		return out.toIPInfoOutput() // Convert to our standard output format
+	}
+	// Fallback to using any since we don't know the exact entry structure
+	// TODO Phillip
+	// Tradeoff between being resilient to DB changes and having a stable output format
+	// So we might not want to do the following in the long-term
+	var record any
+	if err := a.Factory.db.Lookup(ip).Decode(&record); err != nil {
+		log.Debugf("error looking up IP %s in IPInfo database: %v", ip.String(), err)
+		return nil
+	}
 	return record
 }
 
