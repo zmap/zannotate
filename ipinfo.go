@@ -143,9 +143,7 @@ func (a *IPInfoAnnotator) Annotate(inputIP net.IP) interface{} {
 	if err != nil {
 		return nil // not a valid IP address, nothing to be done
 	}
-
-	// IPInfo has multiple tiers of access. To deal with this and to be resilient to DB changes,
-	// we'll attempt to decode into a custom struct first, then fallback to a generic any type.
+	// Decode the IP address using the MaxMind DB reader
 	var out *IPInfoOutput
 	if err = a.Factory.db.Lookup(ip).Decode(&out); out != nil {
 		return out
