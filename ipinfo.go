@@ -28,7 +28,6 @@ import (
 // This module provides IPInfo.io annotations for IP addresses using a local MaxMind DB file.
 
 // ------------------------------------------------------------------------------------
-// MaxMind DB format definitions and conversion functions
 // The MaxMind DB formats were pulled from IPInfo.io's API documentation on 07/29/2025.
 // IPInfo provides data at various tiers of access: Lite, Core, and Plus.
 // Since the MaxMindDB decode is best-effort, we'll just define the Plus format which includes all lower tiers.
@@ -124,7 +123,7 @@ func (a *IPInfoAnnotatorFactory) IsEnabled() bool {
 func (a *IPInfoAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "ipinfo", false, "annotate with IPInfo.io data using a local MaxMind DB file")
 	flags.StringVar(&a.DatabaseFilePath, "ipinfo-database", "", "path to MaxMind DB data file for IPInfo.io annotation")
-	// TODO Phillip - performance test for optimal thread count
+	// On a quick benchmark of 1M IPs using a local DB file on a M2 Macbook Air, 1 thread vs. 10 threads were about the same speed, annotating about 212k IPs/second.
 	flags.IntVar(&a.Threads, "ipinfo-threads", 1, "how many ipinfo annotator threads")
 }
 
