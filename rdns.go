@@ -146,7 +146,6 @@ func (a *RDNSAnnotator) Annotate(ip net.IP) interface{} {
 		if castAns, ok := answer.(zdns.Answer); ok {
 			// Sometimes, CNAME records are returned in addition to PTR records. We'll ignore all non-PTR records.
 			// This replicates the behavior of Go's net.LookupAddr
-			// TODO Phillip - confirm that this is the desired behavior or if we should return CNAMEs as well
 			if castAns.Type != "PTR" {
 				continue
 			}
