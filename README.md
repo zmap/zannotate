@@ -33,3 +33,38 @@ Check that it was installed correctly with:
 ```shell
 zannotate --version
 ```
+
+# Input/Output
+
+## Output
+By default, ZAnnotate reads new-line delimited IP addresses from standard input and outputs a JSON object per line to standard output like:
+
+```shell
+echo "1.1.1.1" | zannotate --rdns --geoasn --geoasn-database=/path-to-geo-asn.mmdb
+```
+
+```json
+{"ip":"1.1.1.1","geoasn":{"asn":13335,"org":"CLOUDFLARENET"},"rdns":{"domain_names":["one.one.one.one"]}}
+```
+
+If an IP address cannot be annotated, either because of an error or lack of data, there will be an empty field for that annotation.
+For example, if an IP address is private and therefore has no RDNS or ASN data, the output will look like:
+```shell
+echo "127.0.0.1" | zannotate --rdns --geoasn --geoasn-database=/path-to-geo-asn.mmdb
+```
+
+```json
+{"geoasn":{},"rdns":{},"ip":"127.0.0.1"}
+```
+
+## Input
+You may wish to annotate data that is already in JSON format. You'll then need to use the `--input-file-type=json` flag.
+This will insert a `zannotate` field into the existing JSON object. For example:
+
+```shell
+echo '{"ip": "1.1.1.1"}'  | ./zannotate --rdns --geoasn --geoasn-database=/path-to-geo-asn.mmdb --input-file-type=json    
+```
+
+```json
+{"ip":"1.1.1.1","zannotate":{"geoasn":{"asn":13335,"org":"CLOUDFLARENET"},"rdns":{"domain_names":["one.one.one.one"]}}}
+```
