@@ -127,20 +127,20 @@ func (a *RDNSAnnotator) Annotate(ip net.IP) interface{} {
 		Class: dns.ClassINET,
 		Name:  ip.String(),
 	}
+	output := &RDNSOutput{}
 	res, _, status, err := a.zdnsResolver.ExternalLookup(context.Background(), &q, nil)
 	if err != nil {
 		log.Debug("encountered error when resolving rdns for ", ip.String(), ": ", err)
-		return nil
+		return output
 	}
 	if status != zdns.StatusNoError {
 		log.Debug("could not resolve rdns for ", ip.String(), " with status: ", status)
-		return nil
+		return output
 	}
 	if res == nil {
 		// this should never happen, but this will be more helpful than a panic
 		log.Fatalf("zdns returned a nil result without erroring, zannotate cannot continue")
 	}
-	var output RDNSOutput
 	output.DomainNames = make([]string, 0, len(res.Answers))
 	for _, answer := range res.Answers {
 		if castAns, ok := answer.(zdns.Answer); ok {
