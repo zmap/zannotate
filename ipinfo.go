@@ -20,26 +20,56 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"strconv"
-	"strings"
 
 	"github.com/oschwald/maxminddb-golang/v2"
 	log "github.com/sirupsen/logrus"
 )
 
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-// IPInfo.io CSV format
-// network,country,country_code,continent,continent_code,asn,as_name,as_domain
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+// This module provides IPInfo.io annotations for IP addresses using a local MaxMind DB file.
 
+// ------------------------------------------------------------------------------------
+// MaxMind DB format definitions and conversion functions
+// The MaxMind DB formats were pulled from IPInfo.io's API documentation on 07/29/2025.
+// IPInfo provides data at various tiers of access: Lite, Core, and Plus.
+// Since the MaxMindDB decode is best-effort, we'll just define the Plus format which includes all lower tiers.
+// If a user has a Lite or Core DB file, the fields not present in those tiers will not appear in output.
+// See https://ipinfo.io/products/plus for more info on field definitions.
+// ------------------------------------------------------------------------------------
+
+// IPInfoOutput includes both the Plus/Core/Lite IPInfo fields and their maxminddb tags, as well as the JSON tags for ZAnnotate output.
 type IPInfoOutput struct {
-	Country       string `json:"country,omitempty"`
-	CountryCode   string `json:"country_code,omitempty"`
-	Continent     string `json:"continent,omitempty"`
-	ContinentCode string `json:"continent_code,omitempty"`
-	ASN           int    `json:"asn,omitempty"`
-	ASName        string `json:"as_name,omitempty"`
-	ASDomain      string `json:"as_domain,omitempty"`
+	City              string  `maxminddb:"city" json:"city,omitempty"`
+	Region            string  `maxminddb:"region" json:"region,omitempty"`
+	RegionCode        string  `maxminddb:"region_code" json:"region_code,omitempty"`
+	Country           string  `maxminddb:"country" json:"country,omitempty"`
+	CountryCode       string  `maxminddb:"country_code" json:"country_code,omitempty"`
+	Continent         string  `maxminddb:"continent" json:"continent,omitempty"`
+	ContinentCode     string  `maxminddb:"continent_code" json:"continent_code,omitempty"`
+	Latitude          float64 `maxminddb:"latitude" json:"latitude,omitempty"`
+	Longitude         float64 `maxminddb:"longitude" json:"longitude,omitempty"`
+	Timezone          string  `maxminddb:"timezone" json:"timezone,omitempty"`
+	PostalCode        string  `maxminddb:"postal_code" json:"postal_code,omitempty"`
+	GeonameID         string  `maxminddb:"geoname_id" json:"geoname_id,omitempty"`   // GeoNames database identifier (if available).
+	Radius            int     `maxminddb:"radius" json:"radius,omitempty"`           // Accuracy radius in kilometers (if available).
+	GeoChanged        string  `maxminddb:"geo_changed" json:"geo_changed,omitempty"` // Timestamp or flag indicating when the geolocation last changed (if available).
+	ASN               string  `maxminddb:"asn" json:"asn,omitempty"`
+	ASName            string  `maxminddb:"as_name" json:"as_name,omitempty"`
+	ASDomain          string  `maxminddb:"as_domain" json:"as_domain,omitempty"`
+	ASType            string  `maxminddb:"as_type" json:"as_type,omitempty"`
+	ASChanged         string  `maxminddb:"as_changed" json:"as_changed,omitempty"`
+	CarrierName       string  `maxminddb:"carrier_name" json:"carrier_name,omitempty"` // Name of the mobile carrier (if available).
+	MobileCountryCode string  `maxminddb:"mcc" json:"mobile_country_code,omitempty"`
+	MobileNetworkCode string  `maxminddb:"mnc" json:"mobile_network_code,omitempty"`
+	PrivacyName       string  `maxminddb:"privacy_name" json:"privacy_name,omitempty"` // Specific name of the privacy or anonymization service detected (e.g., “NordVPN”).
+	IsProxy           *bool   `maxminddb:"is_proxy" json:"is_proxy,omitempty"`
+	IsRelay           *bool   `maxminddb:"is_relay" json:"is_relay,omitempty"`         // Boolean flag indicating use of a general relay service
+	IsTOR             *bool   `maxminddb:"is_tor" json:"is_tor,omitempty"`             // Whether the IP is a known TOR exit node.
+	IsVPN             *bool   `maxminddb:"is_vpn" json:"is_vpn,omitempty"`             // Flag indicating use of a VPN Service
+	IsAnonymous       *bool   `maxminddb:"is_anonymous" json:"is_anonymous,omitempty"` // True if the IP is associated with VPN, proxy, Tor, or a relay service.
+	IsAnycast         *bool   `maxminddb:"is_anycast" json:"is_anycast,omitempty"`     // Whether the IP is using anycast routing.
+	IsHosting         *bool   `maxminddb:"is_hosting" json:"is_hosting,omitempty"`     // True if the IP address is an internet service hosting IP address
+	IsMobile          *bool   `maxminddb:"is_mobile" json:"is_mobile,omitempty"`       // True if the IP address is associated with a mobile network or carrier.
+	IsSatellite       *bool   `maxminddb:"is_satellite" json:"is_satellite,omitempty"` // True if the IP address is associated with a satellite connection
 }
 
 type IPInfoAnnotatorFactory struct {
@@ -92,8 +122,9 @@ func (a *IPInfoAnnotatorFactory) IsEnabled() bool {
 }
 
 func (a *IPInfoAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
-	flags.BoolVar(&a.Enabled, "ipinfo", false, "annotate with IPInfo.io data")
-	flags.StringVar(&a.DatabaseFilePath, "ipinfo-database", "", "path to IPInfo.io MMDB data file")
+	flags.BoolVar(&a.Enabled, "ipinfo", false, "annotate with IPInfo.io data using a local MaxMind DB file")
+	flags.StringVar(&a.DatabaseFilePath, "ipinfo-database", "", "path to MaxMind DB data file for IPInfo.io annotation")
+	// TODO Phillip - performance test for optimal thread count
 	flags.IntVar(&a.Threads, "ipinfo-threads", 1, "how many ipinfo annotator threads")
 }
 
@@ -107,40 +138,6 @@ func (a *IPInfoAnnotator) GetFieldName() string {
 	return "ipinfo"
 }
 
-// IPInfo Lite Tier Record
-type liteRecord struct {
-	Country       string `maxminddb:"country"`
-	CountryCode   string `maxminddb:"country_code"`
-	Continent     string `maxminddb:"continent"`
-	ContinentCode string `maxminddb:"continent_code"`
-	ASN           string `maxminddb:"asn"`
-	ASName        string `maxminddb:"as_name"`
-	ASDomain      string `maxminddb:"as_domain"`
-}
-
-// Convert the liteRecord to the output format
-func (lite *liteRecord) toIPInfoOutput() *IPInfoOutput {
-	if lite == nil {
-		return nil
-	}
-	out := &IPInfoOutput{
-		Country:       lite.Country,
-		CountryCode:   lite.CountryCode,
-		Continent:     lite.Continent,
-		ContinentCode: lite.ContinentCode,
-		ASName:        lite.ASName,
-		ASDomain:      lite.ASDomain,
-	}
-	var err error
-	const AsPrefix = "AS"
-	trimmedPrefix, _ := strings.CutPrefix(lite.ASN, AsPrefix)
-	out.ASN, err = strconv.Atoi(trimmedPrefix)
-	if err != nil {
-		out.ASN = 0 // omit-empty will not output this field
-	}
-	return out
-}
-
 func (a *IPInfoAnnotator) Annotate(inputIP net.IP) interface{} {
 	ip, err := netip.ParseAddr(inputIP.String())
 	if err != nil {
@@ -149,20 +146,14 @@ func (a *IPInfoAnnotator) Annotate(inputIP net.IP) interface{} {
 
 	// IPInfo has multiple tiers of access. To deal with this and to be resilient to DB changes,
 	// we'll attempt to decode into a custom struct first, then fallback to a generic any type.
-	var out *liteRecord
-	if _ = a.Factory.db.Lookup(ip).Decode(&out); out != nil {
-		return out.toIPInfoOutput() // Convert to our standard output format
+	var out *IPInfoOutput
+	if err = a.Factory.db.Lookup(ip).Decode(&out); out != nil {
+		return out
 	}
-	// Fallback to using any since we don't know the exact entry structure
-	// TODO Phillip
-	// Tradeoff between being resilient to DB changes and having a stable output format
-	// So we might not want to do the following in the long-term
-	var record any
-	if err := a.Factory.db.Lookup(ip).Decode(&record); err != nil {
-		log.Debugf("error looking up IP %s in IPInfo database: %v", ip.String(), err)
-		return nil
+	if err != nil {
+		log.Debugf("error decoding IP %s in IPInfo database: %v", ip.String(), err)
 	}
-	return record
+	return nil
 }
 
 func (a *IPInfoAnnotator) Close() error {
