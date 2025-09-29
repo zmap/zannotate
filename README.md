@@ -31,5 +31,5 @@ Either way, this will install the `zannotate` binary in your `$GOPATH/bin` direc
 Check that it was installed correctly with:
 
 ```shell
-zannotate --version
+zannotate --help
 ```
