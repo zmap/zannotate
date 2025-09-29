@@ -1,5 +1,6 @@
 .idea
 *.mmdb
+!data-snapshots/*.mmdb
 **/venv/*
 **/__pycache__/*
 # zannotate binary
