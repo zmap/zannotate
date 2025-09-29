@@ -28,7 +28,7 @@ import (
 )
 
 type RDNSOutput struct {
-	DomainNames []string `json:"domain_names"`
+	DomainNames []string `json:"domain_names,omitempty"`
 }
 
 type RDNSAnnotatorFactory struct {
