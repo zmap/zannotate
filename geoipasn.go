@@ -34,7 +34,6 @@ type GeoLiteASNOutput struct {
 type GeoLiteASNAnnotatorFactory struct {
 	BasePluginConf
 	Path string
-	Mode string
 }
 
 type GeoLiteASNAnnotator struct {
@@ -46,7 +45,6 @@ type GeoLiteASNAnnotator struct {
 func (fact *GeoLiteASNAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&fact.Enabled, "geoasn", false, "annotate with Maxmind GeoLite ASN data")
 	flags.StringVar(&fact.Path, "geoasn-database", "", "path to Maxmind ASN database")
-	flags.StringVar(&fact.Mode, "geoasn-mode", "mmap", "how to open database: mmap or memory")
 	flags.IntVar(&fact.Threads, "geoasn-threads", 5, "how many geoASN processing threads to use")
 }
 
@@ -78,26 +76,15 @@ func (fact *GeoLiteASNAnnotatorFactory) Close() error {
 }
 
 func (anno *GeoLiteASNAnnotator) Initialize() error {
-	switch anno.Factory.Mode {
-	case "memory":
-		bytes, err := os.ReadFile(anno.Factory.Path)
-		if err != nil {
-			return fmt.Errorf("unable to open maxmind GeoLite ASN database (memory): %w", err)
-		}
-		db, err := geoip2.FromBytes(bytes)
-		if err != nil {
-			return fmt.Errorf("unable to parse maxmind GeoLite ASN database: %w", err)
-		}
-		anno.Reader = db
-	case "mmap":
-		db, err := geoip2.Open(anno.Factory.Path)
-		if err != nil {
-			return fmt.Errorf("unable to load maxmind GeoLite ASN database: %w", err)
-		}
-		anno.Reader = db
-	default:
-		return fmt.Errorf("unrecognized GeoLite ASN mode: %s", anno.Factory.Mode)
+	bytes, err := os.ReadFile(anno.Factory.Path)
+	if err != nil {
+		return fmt.Errorf("unable to open maxmind GeoLite ASN database (memory): %w", err)
 	}
+	db, err := geoip2.FromBytes(bytes)
+	if err != nil {
+		return fmt.Errorf("unable to parse maxmind GeoLite ASN database: %w", err)
+	}
+	anno.Reader = db
 	return nil
 }
 
