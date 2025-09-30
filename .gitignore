@@ -1,5 +1,6 @@
 .idea
 *.mmdb
+# Ignore all mmdb files in data-snapshots directory, used for unit-testing
 !data-snapshots/*.mmdb
 **/venv/*
 **/__pycache__/*

@@ -32,7 +32,64 @@ Either way, this will install the `zannotate` binary in your `$GOPATH/bin` direc
 Check that it was installed correctly with:
 
 ```shell
-zannotate --version
+zannotate --help
+```
+
+# Acquiring Datasets
+
+> [!NOTE]
+> URLs and instructions may change over time. These are up-to-date as of September 2025.
+
+Below are instructions for getting datasets from the below providers.
+
+### GeoLite2-ASN
+1. [Sign-up form](https://www.maxmind.com/en/geolite2/signup) for MaxMind GeoLite Access
+2. Login to your account
+3. Go to the "GeoIP / GeoLite" > "Download files" section where you should see a list of available databases
+4. Download the `.mmdb` files for GeoLite ASN
+5. Unzip the downloaded file and test with:
+
+```shell
+echo "1.1.1.1" | zannotate --geoasn --geoasn-database=/path-to-downloaded-file/GeoLite2-ASN_20250923/GeoLite2-ASN.mmdb
+```
+
+```shell
+{"ip":"1.1.1.1","geoasn":{"asn":13335,"org":"CLOUDFLARENET"}}
+```
+
+# Input/Output
+
+## Output
+By default, ZAnnotate reads new-line delimited IP addresses from standard input and outputs a JSON object per line to standard output like:
+
+```shell
+echo "1.1.1.1" | zannotate --rdns --geoasn --geoasn-database=/path-to-geo-asn.mmdb
+```
+
+```json
+{"ip":"1.1.1.1","geoasn":{"asn":13335,"org":"CLOUDFLARENET"},"rdns":{"domain_names":["one.one.one.one"]}}
+```
+
+If an IP address cannot be annotated, either because of an error or lack of data, there will be an empty field for that annotation.
+For example, if an IP address is private and therefore has no RDNS or ASN data, the output will look like:
+```shell
+echo "127.0.0.1" | zannotate --rdns --geoasn --geoasn-database=/path-to-geo-asn.mmdb
+```
+
+```json
+{"geoasn":{},"rdns":{},"ip":"127.0.0.1"}
+```
+
+## Input
+You may wish to annotate data that is already in JSON format. You'll then need to use the `--input-file-type=json` flag.
+This will insert a `zannotate` field into the existing JSON object. For example:
+
+```shell
+echo '{"ip": "1.1.1.1"}'  | ./zannotate --rdns --geoasn --geoasn-database=/path-to-geo-asn.mmdb --input-file-type=json    
+```
+
+```json
+{"ip":"1.1.1.1","zannotate":{"geoasn":{"asn":13335,"org":"CLOUDFLARENET"},"rdns":{"domain_names":["one.one.one.one"]}}}
 ```
 
 # Acquiring Datasets
