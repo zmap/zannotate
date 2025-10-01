@@ -56,6 +56,27 @@ echo "1.1.1.1" | zannotate --geoasn --geoasn-database=/path-to-downloaded-file/G
 {"ip":"1.1.1.1","geoasn":{"asn":13335,"org":"CLOUDFLARENET"}}
 ```
 
+### BGP Routing Tables
+1. Go to [https://archive.routeviews.org/route-views2/bgpdata/](https://archive.routeviews.org/route-views2/bgpdata/)
+2. Select a month directory (e.g. `2025.09`)
+3. Select the `RIBS/` directory
+4. Download a BZiped MRT file (e.g. `rib.20250923.1200.bz2`)
+5. Unzip the file with:
+
+```shell
+bzip2 -d ./path-to-downloaded-file/rib.20250923.1200.bz2
+```
+
+6. Test with:
+
+```shell
+echo "1.1.1.1" | ./zannotate --routing --routing-mrt-file=/tmp/rib.20250923.1200
+```
+
+```json
+{"ip":"1.1.1.1","routing":{"prefix":"1.1.1.0/24","asn":13335,"path":[3561,209,3356,13335]}}
+```
+
 # Input/Output
 
 ## Output
