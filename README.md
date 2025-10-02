@@ -111,3 +111,37 @@ echo '{"ip": "1.1.1.1"}'  | ./zannotate --rdns --geoasn --geoasn-database=/path-
 ```json
 {"ip":"1.1.1.1","zannotate":{"geoasn":{"asn":13335,"org":"CLOUDFLARENET"},"rdns":{"domain_names":["one.one.one.one"]}}}
 ```
+# Acquiring Datasets
+
+> [!NOTE]
+> URLs and instructions may change over time. These are up-to-date as of September 2025.
+Below are instructions for getting datasets from the below providers.
+
+### MaxMind GeoLite ASN and City (Formerly GeoIP2)
+
+1. [Sign-up form](https://www.maxmind.com/en/geolite2/signup) for MaxMind GeoLite Access
+2. Login to your account
+3. Go to the "GeoIP / GeoLite" > "Download files" section and download the zip files for either GeoLite ASN or GeoLite City
+datasets. 
+
+![GeoLite Download Page](.github/readme-images/maxmind-geolite-downloads-screenshot.png)
+
+4. Unzip, place the `.mmdb` files somewhere and test with the below.
+
+#### MaxMind GeoLite City
+```shell
+echo "171.67.71.209" | ./zannotate --geoip2 --geoip2-database=./path-to-geolite2.mmdb
+```
+
+```json
+{"ip":"171.67.71.209","geoip2":{"city":{"name":"Vallejo","id":5405380},"country":{"name":"United States","code":"US","id":6252001},"continent":{"name":"North America","code":"NA","id":6255149},"postal":{"code":"94590"},"latlong":{"accuracy_radius":50,"latitude":38.1043,"longitude":-122.2442,"metro_code":807,"time_zone":"America/Los_Angeles"},"represented_country":{},"registered_country":{"name":"United States","code":"US","id":6252001},"metadata":{}}}
+```
+
+#### MaxMind GeoLite ASN
+```shell
+ echo "171.67.71.209" | ./zannotate --geoasn --geoasn-database=/path-to-asn-file.mmdb 
+```
+
+```json
+{"ip":"171.67.71.209","geoasn":{"asn":32,"org":"STANFORD"}}
+```
