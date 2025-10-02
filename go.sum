@@ -70,6 +70,8 @@ github.com/zmap/go-dns-root-anchors v0.0.0-20250415191259-6d65fb878756 h1:yeprVD
 github.com/zmap/go-dns-root-anchors v0.0.0-20250415191259-6d65fb878756/go.mod h1:W5CEzaf+B3Pg1hzUQotwQ2EBg7jB49DkmKuiNuWPO80=
 github.com/zmap/go-iptree v0.0.0-20210731043055-d4e632617837 h1:DjHnADS2r2zynZ3WkCFAQ+PNYngMSNceRROi0pO6c3M=
 github.com/zmap/go-iptree v0.0.0-20210731043055-d4e632617837/go.mod h1:9vp0bxqozzQwcjBwenEXfKVq8+mYbwHkQ1NF9Ap0DMw=
+github.com/zmap/go-iptree v0.0.0-20251001212402-0a55a77d6804 h1:jcY3/CdJnd4A5bO3m5ebZyV533Owz8A6NlDoWE/WQgQ=
+github.com/zmap/go-iptree v0.0.0-20251001212402-0a55a77d6804/go.mod h1:9vp0bxqozzQwcjBwenEXfKVq8+mYbwHkQ1NF9Ap0DMw=
 github.com/zmap/zcrypto v0.0.0-20250416162916-8ff8dfaa718d h1:QcrqQ8a285ozWrRrsPUtYl4y+9YJAM4gSTF3EQDTQk8=
 github.com/zmap/zcrypto v0.0.0-20250416162916-8ff8dfaa718d/go.mod h1:Zz4/7kyRgJXC+PTpLV4tIgaCMTHWnNbgOLZoXuVrkws=
 github.com/zmap/zdns/v2 v2.0.5 h1:RNrKZWki/LzKIXiHcO3oJwVM0mXkwu5mNs5s3Phniy0=
