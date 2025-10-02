@@ -8,8 +8,8 @@ require (
 	github.com/oschwald/maxminddb-golang/v2 v2.0.0-beta.10
 	github.com/osrg/gobgp/v3 v3.37.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/zmap/dns v1.1.67
-	github.com/zmap/go-iptree v0.0.0-20210731043055-d4e632617837
+  github.com/zmap/dns v1.1.67
+	github.com/zmap/go-iptree v0.0.0-20251001212402-0a55a77d6804
 	github.com/zmap/zdns/v2 v2.0.5
 	gotest.tools/v3 v3.5.2
 )

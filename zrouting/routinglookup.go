@@ -92,7 +92,8 @@ func (t *RoutingLookupTree) PopulateFromMRTFiltered(raw io.Reader, pathFilter Pa
 			if len(n.Path) > 0 {
 				n.ASN = n.Path[len(n.Path)-1]
 			}
-			err := t.IPTree.AddByString(e.Prefix, n)
+			// Set the node in the tree
+			err := t.IPTree.SetByString(e.Prefix, n)
 			if err != nil {
 				return fmt.Errorf("could not add prefix %s to IP tree: %w", e.Prefix, err)
 			}
