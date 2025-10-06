@@ -22,16 +22,16 @@ import (
 
 // TestIPInfoAnnotator tests the IPInfoAnnotator with known IP addresses against a constant MMDB file in ./data-snapshots
 // Unfortunately, I only have a free account for IPInfo, so can only test parsing for the Lite api with a real DB file.
-func TestIPInfoAnnotator(t *testing.T) {
+func TestIPInfoAnnotatorLite(t *testing.T) {
 	tests := []struct {
 		testName       string
 		ipAddr         net.IP
-		expectedResult *IPInfoOutput
+		expectedResult *IPInfoModuleOutput
 	}{
 		{
 			testName: "Positive Test Case, IPv4",
 			ipAddr:   net.ParseIP("1.1.1.1"),
-			expectedResult: &IPInfoOutput{
+			expectedResult: &IPInfoModuleOutput{
 				ASN:           "AS13335",
 				ASName:        "Cloudflare, Inc.",
 				ASDomain:      "cloudflare.com",
@@ -43,7 +43,7 @@ func TestIPInfoAnnotator(t *testing.T) {
 		}, {
 			testName: "Positive Test Case, IPv6",
 			ipAddr:   net.ParseIP("2606:4700:4700::1111"),
-			expectedResult: &IPInfoOutput{
+			expectedResult: &IPInfoModuleOutput{
 				ASN:           "AS13335",
 				ASName:        "Cloudflare, Inc.",
 				ASDomain:      "cloudflare.com",
@@ -84,5 +84,103 @@ func TestIPInfoAnnotator(t *testing.T) {
 				t.Errorf("Annotating IP %s gave = %v; expected: %v", tt.ipAddr, result, tt.expectedResult)
 			}
 		})
+	}
+}
+
+func TestIPInfoAnnotatorCore(t *testing.T) {
+	expectedResult := &IPInfoModuleOutput{
+		City:          "Brisbane",
+		Region:        "Queensland",
+		RegionCode:    "QLD",
+		Country:       "Australia",
+		CountryCode:   "AU",
+		Continent:     "Oceania",
+		ContinentCode: "OC",
+		Latitude:      -27.48159,
+		Longitude:     153.0175,
+		Timezone:      "Australia/Brisbane",
+		PostalCode:    "4101",
+		ASN:           "AS13335",
+		ASName:        "Cloudflare, Inc.",
+		ASDomain:      "cloudflare.com",
+		ASType:        "hosting",
+		IsAnonymous:   &[]bool{true}[0],
+		IsAnycast:     &[]bool{true}[0],
+		IsHosting:     &[]bool{true}[0],
+		IsMobile:      &[]bool{false}[0],
+		IsSatellite:   &[]bool{false}[0],
+	}
+	inputIP := net.ParseIP("1.0.0.1")
+	factory := &IPInfoAnnotatorFactory{
+		DatabaseFilePath: "./data-snapshots/ipinfo_core_sample.mmdb",
+	}
+	err := factory.Initialize(nil)
+	if err != nil {
+		t.Fatalf("Failed to initialize IPInfoAnnotatorFactory: %v", err)
+	}
+	annotator := factory.MakeAnnotator(0).(*IPInfoAnnotator)
+	err = annotator.Initialize()
+	if err != nil {
+		t.Fatalf("Failed to initialize IPInfoAnnotator: %v", err)
+	}
+	result := annotator.Annotate(inputIP)
+	if expectedResult == nil && result == nil {
+		return // pass
+	}
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Errorf("Annotating IP %s gave = \n%v\nexpected: \n%v", inputIP, result, expectedResult)
+	}
+}
+
+func TestIPInfoAnnotatorPlus(t *testing.T) {
+	expectedResult := &IPInfoModuleOutput{
+		City:          "Brisbane",
+		Region:        "Queensland",
+		RegionCode:    "QLD",
+		Country:       "Australia",
+		CountryCode:   "AU",
+		Continent:     "Oceania",
+		ContinentCode: "OC",
+		Latitude:      -27.48159,
+		Longitude:     153.0175,
+		Timezone:      "Australia/Brisbane",
+		PostalCode:    "4101",
+		GeonameID:     2174003,
+		Radius:        200,
+		ASN:           "AS13335",
+		ASName:        "Cloudflare, Inc.",
+		ASDomain:      "cloudflare.com",
+		ASType:        "hosting",
+		ASChanged:     "2025-09-28",
+		GeoChanged:    "2024-02-18",
+		IsAnonymous:   &[]bool{true}[0],
+		IsAnycast:     &[]bool{true}[0],
+		IsHosting:     &[]bool{true}[0],
+		IsMobile:      &[]bool{false}[0],
+		IsSatellite:   &[]bool{false}[0],
+		IsProxy:       &[]bool{false}[0],
+		IsRelay:       &[]bool{false}[0],
+		IsTOR:         &[]bool{false}[0],
+		IsVPN:         &[]bool{true}[0],
+	}
+	inputIP := net.ParseIP("1.0.0.1")
+	factory := &IPInfoAnnotatorFactory{
+		DatabaseFilePath: "./data-snapshots/ipinfo_plus_sample.mmdb",
+	}
+	err := factory.Initialize(nil)
+	if err != nil {
+		t.Fatalf("Failed to initialize IPInfoAnnotatorFactory: %v", err)
+	}
+	annotator := factory.MakeAnnotator(0).(*IPInfoAnnotator)
+	err = annotator.Initialize()
+	if err != nil {
+		t.Fatalf("Failed to initialize IPInfoAnnotator: %v", err)
+	}
+	result := annotator.Annotate(inputIP)
+	if expectedResult == nil && result == nil {
+		return // pass
+	}
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Errorf("Annotating IP %s gave = \n%v\nexpected: \n%v", inputIP, result, expectedResult)
 	}
 }

@@ -50,6 +50,7 @@ type IPInfoMMDBOutput struct {
 	Longitude         string `maxminddb:"longitude"`
 	Timezone          string `maxminddb:"timezone"`
 	PostalCode        string `maxminddb:"postal_code"`
+	DMACode           string `maxminddb:"dma_code"`
 	GeonameID         string `maxminddb:"geoname_id"`  // GeoNames database identifier (if available).
 	Radius            string `maxminddb:"radius"`      // Accuracy radius in kilometers (if available).
 	GeoChanged        string `maxminddb:"geo_changed"` // Timestamp or flag indicating when the geolocation last changed (if available).
@@ -86,6 +87,7 @@ type IPInfoModuleOutput struct {
 	Longitude         float64 `json:"longitude,omitempty"`
 	Timezone          string  `json:"timezone,omitempty"`
 	PostalCode        string  `json:"postal_code,omitempty"`
+	DMACode           string  `json:"dma_code,omitempty"`    // Nielsen Designated Market Area code (if available).
 	GeonameID         uint64  `json:"geoname_id,omitempty"`  // GeoNames database identifier (if available).
 	Radius            uint64  `json:"radius,omitempty"`      // Accuracy radius in kilometers (if available).
 	GeoChanged        string  `json:"geo_changed,omitempty"` // Timestamp or flag indicating when the geolocation last changed (if available).
@@ -147,31 +149,40 @@ func (in *IPInfoMMDBOutput) ToModuleOutput() *IPInfoModuleOutput {
 	}
 	var temp bool
 	if temp, err = strconv.ParseBool(in.IsProxy); err == nil {
-		out.IsProxy = &temp
+		t := temp // avoid taking address of a short-lived variable
+		out.IsProxy = &t
 	}
 	if temp, err = strconv.ParseBool(in.IsRelay); err == nil {
-		out.IsRelay = &temp
+		t := temp // avoid taking address of a short-lived variable
+		out.IsRelay = &t
 	}
 	if temp, err = strconv.ParseBool(in.IsTOR); err == nil {
-		out.IsTOR = &temp
+		t := temp // avoid taking address of a short-lived variable
+		out.IsTOR = &t
 	}
 	if temp, err = strconv.ParseBool(in.IsVPN); err == nil {
-		out.IsVPN = &temp
+		t := temp // avoid taking address of a short-lived variable
+		out.IsVPN = &t
 	}
 	if temp, err = strconv.ParseBool(in.IsAnonymous); err == nil {
-		out.IsAnonymous = &temp
+		t := temp // avoid taking address of a short-lived variable
+		out.IsAnonymous = &t
 	}
 	if temp, err = strconv.ParseBool(in.IsAnycast); err == nil {
-		out.IsAnycast = &temp
+		t := temp // avoid taking address of a short-lived variable
+		out.IsAnycast = &t
 	}
 	if temp, err = strconv.ParseBool(in.IsHosting); err == nil {
-		out.IsHosting = &temp
+		t := temp // avoid taking address of a short-lived variable
+		out.IsHosting = &t
 	}
 	if temp, err = strconv.ParseBool(in.IsMobile); err == nil {
-		out.IsMobile = &temp
+		t := temp // avoid taking address of a short-lived variable
+		out.IsMobile = &t
 	}
 	if temp, err = strconv.ParseBool(in.IsSatellite); err == nil {
-		out.IsSatellite = &temp
+		t := temp // avoid taking address of a short-lived variable
+		out.IsSatellite = &t
 	}
 	return out
 }
