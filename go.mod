@@ -5,10 +5,10 @@ go 1.24.0
 require (
 	github.com/json-iterator/go v1.1.12
 	github.com/oschwald/geoip2-golang v1.13.0
-	github.com/oschwald/maxminddb-golang/v2 v2.0.0-beta.10
+	github.com/oschwald/maxminddb-golang/v2 v2.0.0
 	github.com/osrg/gobgp/v3 v3.37.0
 	github.com/sirupsen/logrus v1.9.3
-  github.com/zmap/dns v1.1.67
+	github.com/zmap/dns v1.1.67
 	github.com/zmap/go-iptree v0.0.0-20251001212402-0a55a77d6804
 	github.com/zmap/zdns/v2 v2.0.5
 	gotest.tools/v3 v3.5.2
@@ -39,7 +39,7 @@ require (
 	golang.org/x/mod v0.25.0 // indirect
 	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/sync v0.15.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/text v0.26.0 // indirect
 	golang.org/x/tools v0.33.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
