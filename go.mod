@@ -8,7 +8,7 @@ require (
 	github.com/oschwald/maxminddb-golang/v2 v2.1.1
 	github.com/osrg/gobgp/v3 v3.37.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/zmap/dns v1.1.69
+	github.com/zmap/dns v1.1.70
 	github.com/zmap/go-iptree v0.0.0-20251001212402-0a55a77d6804
 	github.com/zmap/zdns/v2 v2.0.5
 	gotest.tools/v3 v3.5.2
@@ -35,12 +35,12 @@ require (
 	github.com/zmap/zcrypto v0.0.0-20250416162916-8ff8dfaa718d // indirect
 	github.com/zmap/zflags v1.4.0-beta.1.0.20200204220219-9d95409821b6 // indirect
 	github.com/zmap/zgrab2 v0.2.0 // indirect
-	golang.org/x/crypto v0.45.0 // indirect
-	golang.org/x/mod v0.30.0 // indirect
-	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/sync v0.18.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
-	golang.org/x/tools v0.39.0 // indirect
+	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/mod v0.31.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/tools v0.40.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
