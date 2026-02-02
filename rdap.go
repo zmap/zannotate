@@ -78,7 +78,7 @@ func (a *RDAPAnnotator) Initialize() error {
 }
 
 func (a *RDAPAnnotator) GetFieldName() string {
-	return "rdap/whois"
+	return "whois"
 }
 
 func (a *RDAPAnnotator) Annotate(ip net.IP) interface{} {
