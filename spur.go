@@ -15,6 +15,7 @@
 package zannotate
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -121,9 +122,21 @@ func (a *SpurAnnotator) Annotate(ip net.IP) interface{} {
 	if resp.StatusCode == http.StatusOK {
 		trimmed, _ := strings.CutSuffix(string(body), "\n") // Remove trailing newline if present, cleans up output
 		return json.RawMessage(trimmed)
+	} else if resp.StatusCode == http.StatusUnauthorized {
+		// retrieve error message from body if possible
+		var msg string
+		if json.Valid(body) {
+			var compact bytes.Buffer
+			if err := json.Compact(&compact, body); err == nil {
+				msg = compact.String()
+			} else {
+				// fallback to raw trimmed text if compaction fails
+				msg = strings.TrimSpace(string(body))
+			}
+		}
+		// wouldn't be able to recover from an auth error, so log fatal with details and exit
+		log.Fatalf("error from Spur API for IP %s. Spur responded with %s: double-check your API key", ip.String(), msg)
 	}
-
-	log.Errorf("Spur API returned non-200 status for IP %s: %d - %s", ip.String(), resp.StatusCode, string(body))
 
 	return nil
 }
