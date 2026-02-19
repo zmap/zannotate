@@ -57,13 +57,7 @@ func (a *RDAPAnnotatorFactory) MakeAnnotator(i int) Annotator {
 	var v RDAPAnnotator
 	v.Factory = a
 	v.Id = i
-	v.rdapClient = &rdap.Client{
-		HTTP:                      nil,
-		Bootstrap:                 nil,
-		Verbose:                   nil,
-		ServiceProviderExperiment: false,
-		UserAgent:                 "",
-	}
+	v.rdapClient = &rdap.Client{}
 	return &v
 }
 
