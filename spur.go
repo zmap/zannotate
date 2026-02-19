@@ -30,7 +30,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const SPUR_API_URL = "https://api.spur.us/v2/context/"
+const SpurApiUrl = "https://api.spur.us/v2/context/"
 
 type SpurAnnotatorFactory struct {
 	BasePluginConf
@@ -97,7 +97,7 @@ func (a *SpurAnnotator) GetFieldName() string {
 func (a *SpurAnnotator) Annotate(ip net.IP) interface{} {
 	req, err := http.NewRequest(
 		http.MethodGet,
-		fmt.Sprintf("%s%s", SPUR_API_URL, ip.String()),
+		fmt.Sprintf("%s%s", SpurApiUrl, ip.String()),
 		nil,
 	)
 	if err != nil {
