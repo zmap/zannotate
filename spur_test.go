@@ -56,7 +56,7 @@ func TestSpurAnnotatorMockSuccess(t *testing.T) {
 		Transport: mockRoundTripper{
 			expectedToken: "test-key",
 			status:        http.StatusOK,
-			body: `{"as":{"number":13335,"organization":"Cloudflare, Inc."},"infrastructure":"DATACENTER","ip":"1.1.1.1","location":{"city":"Anycast","country":"ZZ","state":"Anycast"},"organization":"Taguchi Digital Marketing System"}`,
+			body:          `{"as":{"number":13335,"organization":"Cloudflare, Inc."},"infrastructure":"DATACENTER","ip":"1.1.1.1","location":{"city":"Anycast","country":"ZZ","state":"Anycast"},"organization":"Taguchi Digital Marketing System"}`,
 		},
 	}
 

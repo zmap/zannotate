@@ -112,17 +112,23 @@ func (a *SpurAnnotator) Annotate(ip net.IP) interface{} {
 		log.Errorf("http request to Spur API failed for IP %s: %v", ip.String(), err)
 		return nil
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Errorf("failed to close Spur API response body: %v", err)
+		}
+	}(resp.Body)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Errorf("failed to read response body for IP %s: %v", ip.String(), err)
 		return nil
 	}
-	if resp.StatusCode == http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK:
 		trimmed, _ := strings.CutSuffix(string(body), "\n") // Remove trailing newline if present, cleans up output
 		return json.RawMessage(trimmed)
-	} else if resp.StatusCode == http.StatusUnauthorized {
+	case http.StatusUnauthorized:
 		// retrieve error message from body if possible
 		var msg string
 		if json.Valid(body) {
@@ -136,8 +142,8 @@ func (a *SpurAnnotator) Annotate(ip net.IP) interface{} {
 		}
 		// wouldn't be able to recover from an auth error, so log fatal with details and exit
 		log.Fatalf("error from Spur API for IP %s. Spur responded with %s: double-check your API key", ip.String(), msg)
-	}
 
+	}
 	return nil
 }
 
