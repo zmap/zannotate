@@ -12,7 +12,6 @@
  * permissions and limitations under the License.
  */
 
-
 package zannotate
 
 import (
