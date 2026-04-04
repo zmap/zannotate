@@ -102,6 +102,7 @@ echo "127.0.0.1" | zannotate --rdns --geoasn --geoasn-database=/path-to-geo-asn.
 ```
 
 ## Input
+### JSON
 You may wish to annotate data that is already in JSON format. You'll then need to use the `--input-file-type=json` flag.
 This will insert a `zannotate` field into the existing JSON object. For example:
 
@@ -111,6 +112,39 @@ echo '{"ip": "1.1.1.1"}'  | ./zannotate --rdns --geoasn --geoasn-database=/path-
 
 ```json
 {"ip":"1.1.1.1","zannotate":{"geoasn":{"asn":13335,"org":"CLOUDFLARENET"},"rdns":{"domain_names":["one.one.one.one"]}}}
+```
+
+If your JSON objects have a different field for the IP address, you can specify that with the `--input-ip-field` flag. For example, if your JSON objects have an `ip_address` field instead of `ip`, you can use:
+
+```shell
+echo '{"ip_address": "1.1.1.1"}'  | ./zannotate --rdns --input-file-type=json --input-ip-field=ip_address    
+```
+
+```json
+{"ip_address":"1.1.1.1","zannotate":{"rdns":{"domain_names":["one.one.one.one"]}}}
+````
+
+### CSV
+If your input data is in CSV format, you can use the `--input-file-type=csv` flag.
+
+```shell
+printf "name,ip,date\n cloudflare,1.1.1.1,04-04-26\n google,8.8.8.8,04-04-26" | ./zannotate --rdns --input-file-type=csv 
+```
+
+```jsonl
+{"ip":"1.1.1.1","rdns":{"domain_names":["one.one.one.one"]}}
+{"ip":"8.8.8.8","rdns":{"domain_names":["dns.google"]}}
+```
+
+Similar to JSON, you can use the `--input-ip-field` flag to specify a column other than `ip` that contains the IP address.
+
+```shell
+printf "name,ip_address,date\n cloudflare,1.1.1.1,04-04-26\n google,8.8.8.8,04-04-26" | ./zannotate --rdns --input-file-type=csv --input-ip-field=ip_address
+```
+
+```jsonl
+{"ip":"8.8.8.8","rdns":{"domain_names":["dns.google"]}}
+{"ip":"1.1.1.1","rdns":{"domain_names":["one.one.one.one"]}}
 ```
 
 # Acquiring Datasets
