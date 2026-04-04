@@ -52,6 +52,7 @@ func TestGeoIPASNAnnotator(t *testing.T) {
 	}
 	factory := &GeoLiteASNAnnotatorFactory{
 		Path: "./data-snapshots/geolite2_asn.mmdb",
+		Mode: "mmap",
 	}
 	err := factory.Initialize(nil)
 	if err != nil {
