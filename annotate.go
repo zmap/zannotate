@@ -96,7 +96,7 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- string, csvIPIdxChan 
 		fields := strings.Split(strings.TrimSuffix(header, "\n"), ",")
 		ipIdx := slices.Index(fields, conf.InputIPFieldName)
 		if ipIdx == -1 {
-			log.Fatalf("unable to find IP address field in CSV header (%s), you may want to use --input-ip-field to specify", header)
+			log.Fatalf("unable to find IP address field '%s' in CSV header '%s', you may want to use --input-ip-field to specify the column", conf.InputIPFieldName, header)
 		}
 		csvIPIdxChan <- ipIdx
 	}
