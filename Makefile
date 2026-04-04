@@ -23,8 +23,15 @@ uninstall:
 	else \
 		echo "Uninstallation cancelled."; \
 	fi
-test:
+test: zannotate
 	go test -v ./...
+	@if [ ! -d ".venv" ]; then \
+		python3 -m venv .venv; \
+	fi
+	@. .venv/bin/activate && \
+		pip install -r requirements.txt -q && \
+		pytest test_zannotate.py -v
+
 
 lint:
 	goimports -w -local "github.com/zmap/zannotate" ./
