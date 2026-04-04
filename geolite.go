@@ -93,9 +93,9 @@ type GeoIP2Annotator struct {
 
 // GeoIP2 Annotator Factory (Global)
 func (a *GeoIP2AnnotatorFactory) AddFlags(flags *flag.FlagSet) {
-	flags.BoolVar(&a.Enabled, "geoip2", false, "annotate with Maxmind GeoIP2 data")
+	flags.BoolVar(&a.Enabled, "geoip2", false, "annotate with Maxmind GeoIP2/GeoLite data")
 	flags.StringVar(&a.Path, "geoip2-database", "",
-		"path to MaxMind GeoIP2 database")
+		"path to MaxMind GeoIP2/GeoLite database")
 	flags.StringVar(&a.Mode, "geoip2-mode", "mmap",
 		"how to open database: mmap or memory")
 	flags.StringVar(&a.Language, "geoip2-language", "en",
