@@ -114,7 +114,7 @@ echo '{"ip": "1.1.1.1"}'  | ./zannotate --rdns --geoasn --geoasn-database=/path-
 # Acquiring Datasets
 
 > [!NOTE]
-> URLs and instructions may change over time. These are up-to-date as of September 2025.
+> URLs and instructions may change over time. These are up-to-date as of April 2026.
 Below are instructions for getting datasets from the below providers.
 
 ### MaxMind GeoLite ASN and City (Formerly GeoIP2)
