@@ -56,6 +56,8 @@ type GlobalConf struct {
 	JSONAnnotationFieldName string
 	InputDecodeThreads      int
 	OutputEncodeThreads     int
+
+	csvIPColumnIdx int // 0-indexed column to find the IPs for processing in a CSV file
 }
 
 var Annotators []AnnotatorFactory

@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 	"os"
+	"slices"
 
 	log "github.com/sirupsen/logrus"
 
@@ -71,7 +72,7 @@ func main() {
 	default:
 		log.Fatal("Unknown verbosity level specified. Must be between 1 (lowest)--5 (highest)")
 	}
-	if conf.InputFileType != "ips" && conf.InputFileType != "json" {
+	if !slices.Contains([]string{"ips", "json", "csv"}, conf.InputFileType) {
 		log.Fatal("invalid input file type")
 	}
 	// check if we have any annotations to be performed

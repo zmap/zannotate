@@ -16,6 +16,8 @@ package zannotate
 
 import (
 	"bufio"
+	"encoding/csv"
+	"slices"
 
 	"io"
 	"net"
@@ -69,7 +71,8 @@ func ipToInProcess(line string) inProcessIP {
 }
 
 // single worker that reads from file and queues raw lines
-func AnnotateRead(conf *GlobalConf, path string, in chan<- string) {
+// csvIPIdxChan is used with a CSV input file. When the worker has identified the IP column, it'll pass the index here
+func AnnotateRead(conf *GlobalConf, path string, in chan<- string, csvIPIdxChan chan<- int) {
 	log.Debug("read thread started")
 	var f *os.File
 	if path == "" || path == "-" {
@@ -84,7 +87,20 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- string) {
 		log.Debug("reading input from ", path)
 	}
 	r := bufio.NewReader(f)
-	// read IPs out of JSON input
+	if conf.InputFileType == "csv" {
+		// Need to extract the IP column index from the header
+		header, err := r.ReadString('\n')
+		if err != nil {
+			log.Fatal("unable to read the CSV headers", err.Error())
+		}
+		fields := strings.Split(strings.TrimSuffix(header, "\n"), ",")
+		ipIdx := slices.Index(fields, conf.InputIPFieldName)
+		if ipIdx == -1 {
+			log.Fatalf("unable to find IP address field in CSV header (%s), you may want to use --input-ip-field to specify", header)
+		}
+		csvIPIdxChan <- ipIdx
+	}
+	// read IPs out of input
 	for {
 		line, err := r.ReadString('\n')
 		if line != "" {
@@ -104,17 +120,27 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- string) {
 // multiple workers that decode raw lines from AnnotateRead
 // from JSON/CSV into native golang objects
 func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string,
-	outChan chan<- inProcessIP, wg *sync.WaitGroup, i int) {
+	outChan chan<- inProcessIP, wg *sync.WaitGroup, csvIPIdx, i int) {
 	for line := range inChan {
 		l := strings.TrimSuffix(line, "\n")
-		if conf.InputFileType == "json" {
+		switch conf.InputFileType {
+		case "json":
 			val := jsonToInProcess(l, conf.InputIPFieldName, conf.JSONAnnotationFieldName)
 			if conf.JSONAnnotationFieldName != "" {
 				val.Out[conf.JSONAnnotationFieldName] = make(map[string]interface{})
 			}
 			outChan <- val
-		} else {
+		case "csv":
+			r := csv.NewReader(strings.NewReader(l))
+			row, err := r.Read()
+			if err != nil {
+				log.Error("failed to parse CSV line: ", err)
+				continue
+			}
+			outChan <- ipToInProcess(row[csvIPIdx])
+		default:
 			outChan <- ipToInProcess(l)
+
 		}
 	}
 	log.Debug("decode thread ", i, " done")
@@ -160,7 +186,7 @@ func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
 	log.Debug("write thread finished")
 }
 
-func AnnotateWorker(a Annotator, inChan <-chan inProcessIP,
+func AnnotateWorker(conf *GlobalConf, a Annotator, inChan <-chan inProcessIP,
 	outChan chan<- inProcessIP, fieldName string, wg *sync.WaitGroup, i int) {
 	name := a.GetFieldName()
 	log.Debug("annotate worker (", name, ") ", i, " started")
@@ -169,7 +195,7 @@ func AnnotateWorker(a Annotator, inChan <-chan inProcessIP,
 		log.Fatal("error initializing annotate worker: ", err)
 	}
 	for inProcess := range inChan {
-		if fieldName != "" {
+		if fieldName != "" && conf.InputFileType == "json" {
 			p := inProcess.Out[fieldName].(map[string]interface{})
 			p[name] = a.Annotate(inProcess.Ip)
 		} else {
@@ -196,12 +222,19 @@ func DoAnnotation(conf *GlobalConf) {
 	//    -> [write to file](1)
 	inRaw := make(chan string)
 	inDecoded := make(chan inProcessIP)
+	csvIPIdxChan := make(chan int)
+	csvIPIdx := -1
 	// read input file
-	go AnnotateRead(conf, conf.InputFilePath, inRaw)
+	go AnnotateRead(conf, conf.InputFilePath, inRaw, csvIPIdxChan)
+
+	if conf.InputFileType == "csv" {
+		csvIPIdx = <-csvIPIdxChan // block for input worker to read the header
+	}
+
 	// decode input data
 	var decodeWG sync.WaitGroup
 	for i := 0; i < conf.InputDecodeThreads; i++ {
-		go AnnotateInputDecode(conf, inRaw, inDecoded, &decodeWG, i)
+		go AnnotateInputDecode(conf, inRaw, inDecoded, &decodeWG, csvIPIdx, i)
 		decodeWG.Add(1)
 	}
 	// spawn threads for each type of annotator
@@ -213,7 +246,7 @@ func DoAnnotation(conf *GlobalConf) {
 		if annotator.IsEnabled() {
 			var annotateWG sync.WaitGroup
 			for i := 0; i < annotator.GetWorkers(); i++ {
-				go AnnotateWorker(annotator.MakeAnnotator(i), lastChannel, nextChannel,
+				go AnnotateWorker(conf, annotator.MakeAnnotator(i), lastChannel, nextChannel,
 					conf.JSONAnnotationFieldName, &annotateWG, i)
 				annotateWG.Add(1)
 			}

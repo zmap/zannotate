@@ -13,18 +13,51 @@ def test_rdns():
     ])
 
 
-# def test_rdns_csv_stdin():
-#     # Test string input in csv format, will need to extract the ip column
-#     input_str = textwrap.dedent("""\
-#     name,ip,date
-#     cloudflare,1.1.1.1,04-04-26
-#     google,8.8.8.8,04-04-26
-#     """)
-#     output = run(input_str, "--rdns", "--input-file-type", "csv", "--input-ip-field", "ip")
-#     assert output == unordered([
-#         {"ip": "1.1.1.1", "rdns": {"domain_names": ["one.one.one.one"]}},
-#         {"ip": "8.8.8.8", "rdns": {"domain_names": ["dns.google"]}},
-#     ])
+def test_rdns_csv_stdin():
+    # Test string input in csv format, will need to extract the ip column
+    input_str = textwrap.dedent("""\
+    name,ip,date
+    cloudflare,1.1.1.1,04-04-26
+    google,8.8.8.8,04-04-26
+    """)
+    output = run(input_str, "--rdns", "--input-file-type", "csv", "--input-ip-field", "ip")
+    assert output == unordered([
+        {"ip": "1.1.1.1", "rdns": {"domain_names": ["one.one.one.one"]}},
+        {"ip": "8.8.8.8", "rdns": {"domain_names": ["dns.google"]}},
+    ])
+
+def test_rdns_csv_stdin_non_standard_key_name():
+    # Test string input in csv format, will need to extract the ip column
+    input_str = textwrap.dedent("""\
+    name,date,ip_address
+    cloudflare,04-04-26,1.1.1.1
+    google,04-04-26,8.8.8.8
+    """)
+    output = run(input_str, "--rdns", "--input-file-type", "csv", "--input-ip-field", "ip_address")
+    assert output == unordered([
+        {"ip": "1.1.1.1", "rdns": {"domain_names": ["one.one.one.one"]}},
+        {"ip": "8.8.8.8", "rdns": {"domain_names": ["dns.google"]}},
+    ])
+
+def test_rdns_csv_file(tmp_path):
+    # Test string input in csv format, will need to extract the ip column
+    input_str = textwrap.dedent("""\
+    name,ip,date
+    cloudflare,1.1.1.1,04-04-26
+    google,8.8.8.8,04-04-26
+    """)
+    input_file = tmp_path / "input.csv"
+    input_file.write_text(textwrap.dedent("""\
+        name,ip,date
+        cloudflare,1.1.1.1,04-04-26
+        google,8.8.8.8,04-04-26
+    """))
+
+    output = run(input_str, "--rdns", "--input-file-type", "csv", "--input-ip-field", "ip", "--input-file", str(input_file))
+    assert output == unordered([
+        {"ip": "1.1.1.1", "rdns": {"domain_names": ["one.one.one.one"]}},
+        {"ip": "8.8.8.8", "rdns": {"domain_names": ["dns.google"]}},
+    ])
 
 def test_rdns_json_stdin():
     # Test string input in csv format, will need to extract the ip column
