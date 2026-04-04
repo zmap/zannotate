@@ -97,7 +97,7 @@ func (a *GeoIP2AnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.StringVar(&a.Path, "geoip2-database", "",
 		"path to MaxMind GeoIP2/GeoLite database")
 	flags.StringVar(&a.Mode, "geoip2-mode", "mmap",
-		"how to open database: mmap or memory")
+		"how to open database: 'mmap' or 'memory'")
 	flags.StringVar(&a.Language, "geoip2-language", "en",
 		"what language geoip2 database is in")
 	flags.StringVar(&a.RawInclude, "geoip2-fields", "*",

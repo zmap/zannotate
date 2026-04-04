@@ -46,7 +46,7 @@ type GeoLiteASNAnnotator struct {
 func (fact *GeoLiteASNAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&fact.Enabled, "geoasn", false, "annotate with Maxmind GeoLite ASN data")
 	flags.StringVar(&fact.Path, "geoasn-database", "", "path to Maxmind ASN database")
-	flags.StringVar(&fact.Mode, "geoasn-mode", "mmap", "how to open database: mmap or memory")
+	flags.StringVar(&fact.Mode, "geoasn-mode", "mmap", "how to open database: 'mmap' or 'memory'")
 	flags.IntVar(&fact.Threads, "geoasn-threads", 5, "how many geoASN processing threads to use")
 }
 
