@@ -84,14 +84,18 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- string) {
 		log.Debug("reading input from ", path)
 	}
 	r := bufio.NewReader(f)
-	line, err := r.ReadString('\n')
 	// read IPs out of JSON input
-	for err == nil {
-		in <- line
-		line, err = r.ReadString('\n')
-	}
-	if err != nil && err != io.EOF {
-		log.Fatal("input unable to read file", err)
+	for {
+		line, err := r.ReadString('\n')
+		if line != "" {
+			in <- line
+		}
+		if err != nil {
+			if err != io.EOF {
+				log.Fatal("input unable to read file", err)
+			}
+			break
+		}
 	}
 	close(in)
 	log.Debug("read thread finished")
