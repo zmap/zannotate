@@ -108,7 +108,7 @@ func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string,
 	for line := range inChan {
 		l := strings.TrimSuffix(line, "\n")
 		if conf.InputFileType == "json" {
-			val := jsonToInProcess(l, conf.JSONIPFieldName, conf.JSONAnnotationFieldName)
+			val := jsonToInProcess(l, conf.InputIPFieldName, conf.JSONAnnotationFieldName)
 			if conf.JSONAnnotationFieldName != "" {
 				val.Out[conf.JSONAnnotationFieldName] = make(map[string]interface{})
 			}

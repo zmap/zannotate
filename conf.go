@@ -52,7 +52,7 @@ type GlobalConf struct {
 	LogFilePath             string
 	Verbosity               int
 	Threads                 int
-	JSONIPFieldName         string
+	InputIPFieldName        string
 	JSONAnnotationFieldName string
 	InputDecodeThreads      int
 	OutputEncodeThreads     int

@@ -38,16 +38,16 @@ def test_rdns_json_stdin():
         {"name": "google",     "ip": "8.8.8.8",  "date": "04-04-26", "zannotate": {"rdns": {"domain_names": ["dns.google"]}}},
     ])
 
-# def test_rdns_json_stdin_non_standard_key_name():
-#     input_str = textwrap.dedent("""\
-#     {"name": "cloudflare","ip_address": "1.1.1.1", "date": "04-04-26"}
-#     {"name": "google","ip_address": "8.8.8.8", "date": "04-04-26"}
-#     """)
-#     output = run(input_str, "--rdns", "--input-file-type", "json", "--input-ip-field", "ip_address")
-#     assert output == unordered([
-#         {"name": "cloudflare", "ip_address": "1.1.1.1", "date": "04-04-26", "zannotate": {"rdns": {"domain_names": ["one.one.one.one"]}}},
-#         {"name": "google",     "ip_address": "8.8.8.8",  "date": "04-04-26", "zannotate": {"rdns": {"domain_names": ["dns.google"]}}},
-#     ])
+def test_rdns_json_stdin_non_standard_key_name():
+    input_str = textwrap.dedent("""\
+    {"name": "cloudflare","ip_address": "1.1.1.1", "date": "04-04-26"}
+    {"name": "google","ip_address": "8.8.8.8", "date": "04-04-26"}
+    """)
+    output = run(input_str, "--rdns", "--input-file-type", "json", "--input-ip-field", "ip_address")
+    assert output == unordered([
+        {"name": "cloudflare", "ip_address": "1.1.1.1", "date": "04-04-26", "zannotate": {"rdns": {"domain_names": ["one.one.one.one"]}}},
+        {"name": "google",     "ip_address": "8.8.8.8",  "date": "04-04-26", "zannotate": {"rdns": {"domain_names": ["dns.google"]}}},
+    ])
 
 
 # Helpers
