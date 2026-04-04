@@ -38,7 +38,7 @@ type RDAPAnnotator struct {
 func (a *RDAPAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "rdap", false, "annotate with RDAP (successor to WHOIS) lookup")
 	flags.IntVar(&a.Threads, "rdap-threads", 5, "how many rdap processing threads to use")
-	flags.IntVar(&a.Timeout, "rdap-timeout", 2, "RDAP query timeout in seconds")
+	flags.IntVar(&a.Timeout, "rdap-timeout", 5, "RDAP query timeout in seconds")
 }
 
 func (a *RDAPAnnotatorFactory) IsEnabled() bool {

@@ -21,9 +21,9 @@ import (
 	"github.com/openrdap/rdap"
 )
 
-func TestRDAPAnnotatorCloudflareSmokeTest(t *testing.T) {
+func TestRDAPAnnotatorCloudflare(t *testing.T) {
 	// Build factory and annotator
-	factory := &RDAPAnnotatorFactory{Timeout: 2}
+	factory := &RDAPAnnotatorFactory{Timeout: 5}
 	a := factory.MakeAnnotator(0).(*RDAPAnnotator)
 
 	res := a.Annotate(net.ParseIP("1.1.1.1"))
@@ -34,5 +34,51 @@ func TestRDAPAnnotatorCloudflareSmokeTest(t *testing.T) {
 	ans := res.(*rdap.IPNetwork)
 	if ans.Name != "APNIC-LABS" {
 		t.Fatalf("RDAPAnnotator failed to annotate 1.1.1.1's name correctly, is owned by APNIC-LABS, got %s", ans.Name)
+	}
+}
+
+func TestRDAPAnnotatorStanford(t *testing.T) {
+	// Build factory and annotator
+	factory := &RDAPAnnotatorFactory{Timeout: 5}
+	a := factory.MakeAnnotator(0).(*RDAPAnnotator)
+
+	ip := "171.67.70.1"
+
+	res := a.Annotate(net.ParseIP(ip))
+	if res == nil {
+		t.Fatalf("RDAPAnnotator failed to annotate %s", ip)
+	}
+
+	ans := res.(*rdap.IPNetwork)
+	if ans.Name != "ESRG" {
+		t.Fatalf("RDAPAnnotator failed to annotate %s's name correctly, is owned by ESRG (Stanford), got %s", ip, ans.Name)
+	}
+	var foundResearchAbuse bool
+	var foundZakir bool
+	expectedValueResearchAbuse := "Stanford ESRG Research Abuse"
+	expectedValueZakir := "Zakir Durumeric"
+	for _, entity := range ans.Entities {
+		for _, subEntity := range entity.Entities {
+			if subEntity.VCard == nil {
+				t.Fatalf("Expected to find a vCard for a sub-entity of %s, but found nil", ip)
+			}
+			for _, prop := range subEntity.VCard.Properties {
+				if prop == nil {
+					continue
+				}
+				if prop.Name == "fn" && prop.Value == expectedValueZakir {
+					foundZakir = true
+				}
+				if prop.Name == "fn" && prop.Value == expectedValueResearchAbuse {
+					foundResearchAbuse = true
+				}
+			}
+		}
+	}
+	if !foundZakir {
+		t.Fatalf("expected to find a field that the ESRG subnet is registered under Zakir Durumeric")
+	}
+	if !foundResearchAbuse {
+		t.Fatalf("expected to find a field that the ESRG subnet has a Research Abuse listing")
 	}
 }
