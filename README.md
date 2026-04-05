@@ -78,6 +78,31 @@ echo "1.1.1.1" | ./zannotate --routing --routing-mrt-file=/tmp/rib.20250923.1200
 {"ip":"1.1.1.1","routing":{"prefix":"1.1.1.0/24","asn":13335,"path":[3561,209,3356,13335]}}
 ```
 
+### Spur IP Enrichment + Intelligence
+
+[spur.us](https://spur.us/) provides per‑IP intelligence such as ASN and organization, infrastructure classification (e.g., datacenter, CDN, mobile), and geolocation metadata. 
+We can query [spur.us](https://spur.us/) alongside other sources to enrich annotations and help identify datacenter/Anycast deployments, CDNs, and ISP ownership.
+
+0. You'll need an API key from Spur to enable ZAnnotate to enrich IPs with their dataset as we'll need to make an API request for each IP address to be enriched.
+Depending on current pricing, you may need to sign up for a paid account.
+Check out [spur.us/pricing](https://spur.us/pricing) for more details.
+1. Once you have an API key, set it as an environment variable in your current shell session:
+
+```shell
+export SPUR_API_KEY=your_api_key_here
+```
+(If you want to make this permanent, add the above line to your shell profile, e.g. `~/.bashrc` or `~/.zshrc`)
+2. Test with:
+
+```shell
+$ echo "1.1.1.1" | ./zannotate --spur
+```
+
+Example Output:
+```shell
+{"ip":"1.1.1.1","spur":{"as":{"number":13335,"organization":"Cloudflare, Inc."},"infrastructure":"DATACENTER","ip":"1.1.1.1","location":{"city":"Anycast","country":"ZZ","state":"Anycast"},"organization":"Taguchi Digital Marketing System"}}
+```
+
 # Input/Output
 
 ## Output
