@@ -42,19 +42,39 @@ zannotate --help
 
 Below are instructions for getting datasets from the below providers.
 
-### GeoLite2-ASN
+### MaxMind GeoIP ASN and City (Formerly GeoIP2)
+
+MaxMind provides datasets for IP geolocation and ASN data in both a free (GeoLite) and paid (GeoIP) version.
+Additionally, both the GeoLite and GeoIP datasets come in two access patterns - a downloadable database file that can be queried locally and a web API.
+The GeoIP module in ZAnnotate supports the local database in both GeoLite and GeoIP versions.
+
+The following assumes you want to use the free GeoLite datasets, but the process is similar for the paid GeoIP data.
+
 1. [Sign-up form](https://www.maxmind.com/en/geolite2/signup) for MaxMind GeoLite Access
 2. Login to your account
-3. Go to the "GeoIP / GeoLite" > "Download files" section where you should see a list of available databases
-4. Download the `.mmdb` files for GeoLite ASN
-5. Unzip the downloaded file and test with:
+3. Go to the "GeoIP / GeoLite" > "Download files" section and download the zip files for either GeoLite ASN or GeoLite City
+   datasets.
 
+![GeoLite Download Page](.github/readme-images/maxmind-geolite-downloads-screenshot.png)
+
+4. Unzip, place the `.mmdb` files somewhere and test with the below.
+
+#### MaxMind GeoIP City
 ```shell
-echo "1.1.1.1" | zannotate --geoasn --geoasn-database=/path-to-downloaded-file/GeoLite2-ASN_20250923/GeoLite2-ASN.mmdb
+echo "171.67.71.209" | ./zannotate --geoip2 --geoip2-database=./path-to-geolite2.mmdb
 ```
 
+```json
+{"ip":"171.67.71.209","geoip2":{"city":{"name":"Vallejo","id":5405380},"country":{"name":"United States","code":"US","id":6252001},"continent":{"name":"North America","code":"NA","id":6255149},"postal":{"code":"94590"},"latlong":{"accuracy_radius":50,"latitude":38.1043,"longitude":-122.2442,"metro_code":807,"time_zone":"America/Los_Angeles"},"represented_country":{},"registered_country":{"name":"United States","code":"US","id":6252001},"metadata":{}}}
+```
+
+#### MaxMind GeoLite ASN
 ```shell
-{"ip":"1.1.1.1","geoasn":{"asn":13335,"org":"CLOUDFLARENET"}}
+ echo "171.67.71.209" | ./zannotate --geoasn --geoasn-database=/path-to-asn-file.mmdb 
+```
+
+```json
+{"ip":"171.67.71.209","geoasn":{"asn":32,"org":"STANFORD"}}
 ```
 
 ### BGP Routing Tables
