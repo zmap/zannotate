@@ -24,8 +24,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Note - MaxMind's GeoLite/GeoIP databases used be known as GeoIP2.
-
 type GeoIPASNOutput struct {
 	ASN    uint   `json:"asn,omitempty"`
 	ASNOrg string `json:"org,omitempty"`
