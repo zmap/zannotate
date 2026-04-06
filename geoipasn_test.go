@@ -24,33 +24,33 @@ func TestGeoIPASNAnnotator(t *testing.T) {
 	tests := []struct {
 		testName       string
 		ipAddr         net.IP
-		expectedResult *GeoLiteASNOutput
+		expectedResult *GeoIPASNOutput
 	}{
 		{
 			testName: "Positive Test Case, IPv4",
 			ipAddr:   net.ParseIP("1.1.1.1"),
-			expectedResult: &GeoLiteASNOutput{
+			expectedResult: &GeoIPASNOutput{
 				ASN:    13335,
 				ASNOrg: "CLOUDFLARENET",
 			},
 		}, {
 			testName: "Positive Test Case, IPv6",
 			ipAddr:   net.ParseIP("2606:4700:4700::1111"),
-			expectedResult: &GeoLiteASNOutput{
+			expectedResult: &GeoIPASNOutput{
 				ASN:    13335,
 				ASNOrg: "CLOUDFLARENET",
 			},
 		}, {
 			testName:       "Negative Test Case, Invalid IP",
 			ipAddr:         net.ParseIP("999.999.999.999"),
-			expectedResult: &GeoLiteASNOutput{},
+			expectedResult: &GeoIPASNOutput{},
 		}, {
 			testName:       "Negative Test Case, Private IP",
 			ipAddr:         net.ParseIP("127.0.0.1"),
-			expectedResult: &GeoLiteASNOutput{},
+			expectedResult: &GeoIPASNOutput{},
 		},
 	}
-	factory := &GeoLiteASNAnnotatorFactory{
+	factory := &GeoIPASNAnnotatorFactory{
 		Path: "./data-snapshots/geolite2_asn.mmdb",
 		Mode: "mmap",
 	}
@@ -60,7 +60,7 @@ func TestGeoIPASNAnnotator(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			annotator := factory.MakeAnnotator(0).(*GeoLiteASNAnnotator)
+			annotator := factory.MakeAnnotator(0).(*GeoIPASNAnnotator)
 			err = annotator.Initialize()
 			if err != nil {
 				t.Fatalf("Failed to initialize annotator: %v", err)

@@ -24,48 +24,48 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Note - MaxMind's GeoLite databases used be known as GeoIP2.
+// Note - MaxMind's GeoLite/GeoIP databases used be known as GeoIP2.
 
-type GeoLiteASNOutput struct {
+type GeoIPASNOutput struct {
 	ASN    uint   `json:"asn,omitempty"`
 	ASNOrg string `json:"org,omitempty"`
 }
 
-type GeoLiteASNAnnotatorFactory struct {
+type GeoIPASNAnnotatorFactory struct {
 	BasePluginConf
 	Path string
 	Mode string
 }
 
-type GeoLiteASNAnnotator struct {
-	Factory *GeoLiteASNAnnotatorFactory
+type GeoIPASNAnnotator struct {
+	Factory *GeoIPASNAnnotatorFactory
 	Reader  *geoip2.Reader
 	Id      int
 }
 
-func (fact *GeoLiteASNAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
-	flags.BoolVar(&fact.Enabled, "geoasn", false, "annotate with Maxmind GeoLite ASN data")
+func (fact *GeoIPASNAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
+	flags.BoolVar(&fact.Enabled, "geoasn", false, "annotate with Maxmind GeoLite/GeoIP ASN data")
 	flags.StringVar(&fact.Path, "geoasn-database", "", "path to Maxmind ASN database")
 	flags.StringVar(&fact.Mode, "geoasn-mode", "mmap", "how to open database: 'mmap' or 'memory'")
 	flags.IntVar(&fact.Threads, "geoasn-threads", 5, "how many geoASN processing threads to use")
 }
 
-func (fact *GeoLiteASNAnnotatorFactory) IsEnabled() bool {
+func (fact *GeoIPASNAnnotatorFactory) IsEnabled() bool {
 	return fact.Enabled
 }
 
-func (fact *GeoLiteASNAnnotatorFactory) GetWorkers() int {
+func (fact *GeoIPASNAnnotatorFactory) GetWorkers() int {
 	return fact.Threads
 }
 
-func (fact *GeoLiteASNAnnotatorFactory) MakeAnnotator(i int) Annotator {
-	var v GeoLiteASNAnnotator
+func (fact *GeoIPASNAnnotatorFactory) MakeAnnotator(i int) Annotator {
+	var v GeoIPASNAnnotator
 	v.Factory = fact
 	v.Id = i
 	return &v
 }
 
-func (fact *GeoLiteASNAnnotatorFactory) Initialize(_ *GlobalConf) error {
+func (fact *GeoIPASNAnnotatorFactory) Initialize(_ *GlobalConf) error {
 	if fact.Path == "" {
 		log.Fatal("no GeoIP ASN database provided")
 	}
@@ -73,11 +73,11 @@ func (fact *GeoLiteASNAnnotatorFactory) Initialize(_ *GlobalConf) error {
 	return nil
 }
 
-func (fact *GeoLiteASNAnnotatorFactory) Close() error {
+func (fact *GeoIPASNAnnotatorFactory) Close() error {
 	return nil
 }
 
-func (anno *GeoLiteASNAnnotator) Initialize() error {
+func (anno *GeoIPASNAnnotator) Initialize() error {
 	switch anno.Factory.Mode {
 	case "memory":
 		bytes, err := os.ReadFile(anno.Factory.Path)
@@ -101,26 +101,26 @@ func (anno *GeoLiteASNAnnotator) Initialize() error {
 	return nil
 }
 
-func (anno *GeoLiteASNAnnotator) GetFieldName() string {
+func (anno *GeoIPASNAnnotator) GetFieldName() string {
 	return "geoasn"
 }
 
-func (anno *GeoLiteASNAnnotator) Annotate(ip net.IP) interface{} {
+func (anno *GeoIPASNAnnotator) Annotate(ip net.IP) interface{} {
 	record, err := anno.Reader.ASN(ip)
 	if err != nil {
-		return &GeoLiteASNOutput{}
+		return &GeoIPASNOutput{}
 	}
-	return &GeoLiteASNOutput{
+	return &GeoIPASNOutput{
 		ASN:    record.AutonomousSystemNumber,
 		ASNOrg: record.AutonomousSystemOrganization,
 	}
 }
 
-func (anno *GeoLiteASNAnnotator) Close() error {
+func (anno *GeoIPASNAnnotator) Close() error {
 	return anno.Reader.Close()
 }
 
 func init() {
-	f := new(GeoLiteASNAnnotatorFactory)
+	f := new(GeoIPASNAnnotatorFactory)
 	RegisterAnnotator(f)
 }
