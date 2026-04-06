@@ -1,0 +1,84 @@
+/*
+ * ZAnnotate Copyright 2026 Regents of the University of Michigan
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+package zannotate
+
+import (
+	"net"
+	"testing"
+
+	"github.com/openrdap/rdap"
+)
+
+func TestRDAPAnnotatorCloudflare(t *testing.T) {
+	// Build factory and annotator
+	factory := &RDAPAnnotatorFactory{Timeout: 5}
+	a := factory.MakeAnnotator(0).(*RDAPAnnotator)
+
+	res := a.Annotate(net.ParseIP("1.1.1.1"))
+	if res == nil {
+		t.Fatal("RDAPAnnotator failed to annotate 1.1.1.1")
+	}
+
+	ans := res.(*rdap.IPNetwork)
+	if ans.Name != "APNIC-LABS" {
+		t.Fatalf("RDAPAnnotator failed to annotate 1.1.1.1's name correctly, is owned by APNIC-LABS, got %s", ans.Name)
+	}
+}
+
+func TestRDAPAnnotatorStanford(t *testing.T) {
+	// Build factory and annotator
+	factory := &RDAPAnnotatorFactory{Timeout: 5}
+	a := factory.MakeAnnotator(0).(*RDAPAnnotator)
+
+	ip := "171.67.70.1"
+
+	res := a.Annotate(net.ParseIP(ip))
+	if res == nil {
+		t.Fatalf("RDAPAnnotator failed to annotate %s", ip)
+	}
+
+	ans := res.(*rdap.IPNetwork)
+	if ans.Name != "ESRG" {
+		t.Fatalf("RDAPAnnotator failed to annotate %s's name correctly, is owned by ESRG (Stanford), got %s", ip, ans.Name)
+	}
+	var foundResearchAbuse bool
+	var foundZakir bool
+	expectedValueResearchAbuse := "Stanford ESRG Research Abuse"
+	expectedValueZakir := "Zakir Durumeric"
+	for _, entity := range ans.Entities {
+		for _, subEntity := range entity.Entities {
+			if subEntity.VCard == nil {
+				t.Fatalf("Expected to find a vCard for a sub-entity of %s, but found nil", ip)
+			}
+			for _, prop := range subEntity.VCard.Properties {
+				if prop == nil {
+					continue
+				}
+				if prop.Name == "fn" && prop.Value == expectedValueZakir {
+					foundZakir = true
+				}
+				if prop.Name == "fn" && prop.Value == expectedValueResearchAbuse {
+					foundResearchAbuse = true
+				}
+			}
+		}
+	}
+	if !foundZakir {
+		t.Fatalf("expected to find a field that the ESRG subnet is registered under Zakir Durumeric")
+	}
+	if !foundResearchAbuse {
+		t.Fatalf("expected to find a field that the ESRG subnet has a Research Abuse listing")
+	}
+}
