@@ -42,7 +42,13 @@ zannotate --help
 
 Below are instructions for getting datasets from the below providers.
 
-### MaxMind GeoLite ASN and City (Formerly GeoIP2)
+### MaxMind GeoIP ASN and City (Formerly GeoIP2)
+
+MaxMind provides datasets for IP geolocation and ASN data in both a free (GeoLite) and paid (GeoIP) version.
+Additionally, both the GeoLite and GeoIP datasets come in two access patterns - a downloadable database file that can be queried locally and a web API.
+The GeoIP module in ZAnnotate supports the local database in both GeoLite and GeoIP versions.
+
+The following assumes you want to use the free GeoLite datasets, but the process is similar for the paid GeoIP data.
 
 1. [Sign-up form](https://www.maxmind.com/en/geolite2/signup) for MaxMind GeoLite Access
 2. Login to your account
@@ -53,7 +59,7 @@ Below are instructions for getting datasets from the below providers.
 
 4. Unzip, place the `.mmdb` files somewhere and test with the below.
 
-#### MaxMind GeoLite City
+#### MaxMind GeoIP City
 ```shell
 echo "171.67.71.209" | ./zannotate --geoip2 --geoip2-database=./path-to-geolite2.mmdb
 ```
@@ -70,8 +76,6 @@ echo "171.67.71.209" | ./zannotate --geoip2 --geoip2-database=./path-to-geolite2
 ```json
 {"ip":"171.67.71.209","geoasn":{"asn":32,"org":"STANFORD"}}
 ```
-
-
 
 ### BGP Routing Tables
 1. Go to [https://archive.routeviews.org/route-views2/bgpdata/](https://archive.routeviews.org/route-views2/bgpdata/)
