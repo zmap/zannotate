@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 	"os"
+	"slices"
 
 	log "github.com/sirupsen/logrus"
 
@@ -35,8 +36,8 @@ func main() {
 	flags.StringVar(&conf.LogFilePath, "log-file", "", "where should JSON logs be saved")
 	flags.IntVar(&conf.Verbosity, "verbosity", 3, "log verbosity: 1 (lowest)--5 (highest)")
 	// json annotation configuration
-	flags.StringVar(&conf.JSONIPFieldName, "json-ip-field", "ip", "key in JSON that contains IP address")
-	flags.StringVar(&conf.JSONAnnotationFieldName, "json-annotation-field", "zannotate", "key that metadata is injected at")
+	flags.StringVar(&conf.InputIPFieldName, "input-ip-field", "ip", "key in JSON or column in CSV that contains IP address")
+	flags.StringVar(&conf.OutputAnnotationFieldName, "output-annotation-field", "zannotate", "key that metadata is injected at, used for both CSV and JSON file inputs to preserve data in the input file")
 	// encode/decode threads
 	flags.IntVar(&conf.InputDecodeThreads, "input-decode-threads", 3, "number of golang processes to decode input data (e.g., json)")
 	flags.IntVar(&conf.OutputEncodeThreads, "output-encode-threads", 3, "number of golang processes to encode output data (e.g., json)")
@@ -71,7 +72,7 @@ func main() {
 	default:
 		log.Fatal("Unknown verbosity level specified. Must be between 1 (lowest)--5 (highest)")
 	}
-	if conf.InputFileType != "ips" && conf.InputFileType != "json" {
+	if !slices.Contains([]string{"ips", "json", "csv"}, conf.InputFileType) {
 		log.Fatal("invalid input file type")
 	}
 	// check if we have any annotations to be performed
@@ -87,7 +88,7 @@ func main() {
 	}
 	// perform sanity checks
 	if conf.InputFileType == "ips" {
-		conf.JSONAnnotationFieldName = ""
+		conf.OutputAnnotationFieldName = ""
 	}
 
 	// perform annotation

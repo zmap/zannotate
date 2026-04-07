@@ -45,17 +45,19 @@ type BasePluginConf struct {
 // global library configuration
 
 type GlobalConf struct {
-	InputFilePath           string
-	InputFileType           string
-	OutputFilePath          string
-	MetadataFilePath        string
-	LogFilePath             string
-	Verbosity               int
-	Threads                 int
-	JSONIPFieldName         string
-	JSONAnnotationFieldName string
-	InputDecodeThreads      int
-	OutputEncodeThreads     int
+	InputFilePath             string
+	InputFileType             string
+	OutputFilePath            string
+	MetadataFilePath          string
+	LogFilePath               string
+	Verbosity                 int
+	Threads                   int
+	InputIPFieldName          string
+	OutputAnnotationFieldName string
+	InputDecodeThreads        int
+	OutputEncodeThreads       int
+
+	csvHeaders []string // Header row of a CSV file, used when parsing a CSV input
 }
 
 var Annotators []AnnotatorFactory
