@@ -17,6 +17,7 @@ package zannotate
 import (
 	"bufio"
 	"encoding/csv"
+	"slices"
 
 	"io"
 	"net"
@@ -232,7 +233,7 @@ func AnnotateWorker(conf *GlobalConf, a Annotator, inChan <-chan inProcessIP,
 		log.Fatal("error initializing annotate worker: ", err)
 	}
 	for inProcess := range inChan {
-		if fieldName != "" && (conf.InputFileType == "json" || conf.InputFileType == "csv") {
+		if fieldName != "" && slices.Contains([]string{"json", "csv"}, conf.InputFileType) {
 			p := inProcess.Out[fieldName].(map[string]interface{})
 			p[name] = a.Annotate(inProcess.Ip)
 		} else {
