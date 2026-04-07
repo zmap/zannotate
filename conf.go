@@ -56,6 +56,8 @@ type GlobalConf struct {
 	JSONAnnotationFieldName string
 	InputDecodeThreads      int
 	OutputEncodeThreads     int
+
+	csvHeaders	[]string // Header row of a CSV file, used when parsing a CSV input
 }
 
 var Annotators []AnnotatorFactory

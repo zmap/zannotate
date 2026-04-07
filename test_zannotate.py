@@ -22,13 +22,14 @@ def test_rdns_csv_stdin():
     cloudflare,1.1.1.1,04-04-26
     google,8.8.8.8,04-04-26
     """)
+    print(input_str)
     output = run(
         input_str, "--rdns", "--input-file-type", "csv", "--input-ip-field", "ip"
     )
     assert output == unordered(
         [
-            {"ip": "1.1.1.1", "rdns": {"domain_names": ["one.one.one.one"]}},
-            {"ip": "8.8.8.8", "rdns": {"domain_names": ["dns.google"]}},
+            {"ip": "1.1.1.1", "name": "cloudflare", "date": "04-04-26", "zannotate":{"rdns": {"domain_names": ["one.one.one.one"]}}},
+            {"ip": "8.8.8.8", "name": "google", "date": "04-04-26","zannotate":{"rdns": {"domain_names": ["dns.google"]}}},
         ]
     )
 
@@ -50,8 +51,8 @@ def test_rdns_csv_stdin_non_standard_key_name():
     )
     assert output == unordered(
         [
-            {"ip": "1.1.1.1", "rdns": {"domain_names": ["one.one.one.one"]}},
-            {"ip": "8.8.8.8", "rdns": {"domain_names": ["dns.google"]}},
+            {"ip_address": "1.1.1.1", "name": "cloudflare", "date": "04-04-26", "zannotate":{"rdns": {"domain_names": ["one.one.one.one"]}}},
+            {"ip_address": "8.8.8.8", "name": "google", "date": "04-04-26", "zannotate":{"rdns": {"domain_names": ["dns.google"]}}},
         ]
     )
 
@@ -75,15 +76,13 @@ def test_rdns_csv_file(tmp_path):
         "--rdns",
         "--input-file-type",
         "csv",
-        "--input-ip-field",
-        "ip",
         "--input-file",
         str(input_file),
     )
     assert output == unordered(
         [
-            {"ip": "1.1.1.1", "rdns": {"domain_names": ["one.one.one.one"]}},
-            {"ip": "8.8.8.8", "rdns": {"domain_names": ["dns.google"]}},
+            {"ip": "1.1.1.1",  "name": "cloudflare", "date": "04-04-26", "zannotate":{"rdns": {"domain_names": ["one.one.one.one"]}}},
+            {"ip": "8.8.8.8",  "name": "google", "date": "04-04-26", "zannotate":{"rdns": {"domain_names": ["dns.google"]}}},
         ]
     )
 

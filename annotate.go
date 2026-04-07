@@ -17,7 +17,6 @@ package zannotate
 import (
 	"bufio"
 	"encoding/csv"
-	"slices"
 
 	"io"
 	"net"
@@ -70,9 +69,42 @@ func ipToInProcess(line string) inProcessIP {
 	return retv
 }
 
+func csvToInProcess(record []string, headers []string, ipFieldName, annotationFieldName string) inProcessIP {
+	var retv inProcessIP
+
+	if len(record) != len(headers) {
+		log.Fatalf("csv record length (%d) does not match header length (%d) for record: %v", len(record), len(headers), record)
+	}
+
+	outMap := make(map[string]interface{}, len(headers))
+	for i, header := range headers {
+		outMap[header] = record[i]
+	}
+
+	foundIPField := false
+	for i, header := range headers {
+		if header == ipFieldName {
+			foundIPField = true
+			retv.Ip = net.ParseIP(record[i])
+			if retv.Ip == nil {
+				log.Fatalf("unable to parse IP at column '%d': %s", i, record[i])
+			}
+		} else if header == annotationFieldName {
+			log.Fatalf("csv headers already contains annotation key '%v'", annotationFieldName)
+		} else {
+			outMap[header] = record[i]
+		}
+	}
+	if !foundIPField {
+		log.Fatalf("unable to find IP address field with IP field name %s in CSV record: %v", ipFieldName, record)
+	}
+
+	retv.Out = outMap
+	return retv
+}
+
 // single worker that reads from file and queues raw lines
-// csvIPIdxChan is used with a CSV input file. When the worker has identified the IP column, it'll pass the index here
-func AnnotateRead(conf *GlobalConf, path string, in chan<- string, csvIPIdxChan chan<- int) {
+func AnnotateRead(conf *GlobalConf, path string, in chan<- string) {
 	log.Debug("read thread started")
 	var f *os.File
 	if path == "" || path == "-" {
@@ -88,17 +120,17 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- string, csvIPIdxChan 
 	}
 	r := bufio.NewReader(f)
 	if conf.InputFileType == "csv" {
-		// Need to extract the IP column index from the header
+		// Need to extract the header
 		header, err := r.ReadString('\n')
 		if err != nil {
 			log.Fatal("unable to read the CSV headers", err.Error())
 		}
-		fields := strings.Split(strings.TrimSuffix(header, "\n"), ",")
-		ipIdx := slices.Index(fields, conf.InputIPFieldName)
-		if ipIdx == -1 {
-			log.Fatalf("unable to find IP address field '%s' in CSV header '%s', you may want to use --input-ip-field to specify the column", conf.InputIPFieldName, header)
+		csvReader := csv.NewReader(strings.NewReader(header))
+		fields, err := csvReader.Read()
+		if err != nil {
+			log.Fatal("unable to parse CSV headers: ", err.Error())
 		}
-		csvIPIdxChan <- ipIdx
+		conf.csvHeaders = fields
 	}
 	// read IPs out of input
 	for {
@@ -120,7 +152,7 @@ func AnnotateRead(conf *GlobalConf, path string, in chan<- string, csvIPIdxChan 
 // multiple workers that decode raw lines from AnnotateRead
 // from JSON/CSV into native golang objects
 func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string,
-	outChan chan<- inProcessIP, wg *sync.WaitGroup, csvIPIdx, i int) {
+	outChan chan<- inProcessIP, wg *sync.WaitGroup, i int) {
 	for line := range inChan {
 		l := strings.TrimSuffix(line, "\n")
 		switch conf.InputFileType {
@@ -134,10 +166,14 @@ func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string,
 			r := csv.NewReader(strings.NewReader(l))
 			row, err := r.Read()
 			if err != nil {
-				log.Error("failed to parse CSV line: ", err)
+				log.Errorf("failed to parse CSV line (%s): %v", l, err)
 				continue
 			}
-			outChan <- ipToInProcess(row[csvIPIdx])
+			val := csvToInProcess(row, conf.csvHeaders, conf.InputIPFieldName, conf.JSONAnnotationFieldName)
+			if conf.JSONAnnotationFieldName != "" {
+				val.Out[conf.JSONAnnotationFieldName] = make(map[string]interface{})
+			}
+			outChan <- val
 		default:
 			outChan <- ipToInProcess(l)
 
@@ -195,7 +231,7 @@ func AnnotateWorker(conf *GlobalConf, a Annotator, inChan <-chan inProcessIP,
 		log.Fatal("error initializing annotate worker: ", err)
 	}
 	for inProcess := range inChan {
-		if fieldName != "" && conf.InputFileType == "json" {
+		if fieldName != "" && (conf.InputFileType == "json" || conf.InputFileType == "csv") {
 			p := inProcess.Out[fieldName].(map[string]interface{})
 			p[name] = a.Annotate(inProcess.Ip)
 		} else {
@@ -222,19 +258,13 @@ func DoAnnotation(conf *GlobalConf) {
 	//    -> [write to file](1)
 	inRaw := make(chan string)
 	inDecoded := make(chan inProcessIP)
-	csvIPIdxChan := make(chan int)
-	csvIPIdx := -1
 	// read input file
-	go AnnotateRead(conf, conf.InputFilePath, inRaw, csvIPIdxChan)
-
-	if conf.InputFileType == "csv" {
-		csvIPIdx = <-csvIPIdxChan // block for input worker to read the header
-	}
+	go AnnotateRead(conf, conf.InputFilePath, inRaw)
 
 	// decode input data
 	var decodeWG sync.WaitGroup
 	for i := 0; i < conf.InputDecodeThreads; i++ {
-		go AnnotateInputDecode(conf, inRaw, inDecoded, &decodeWG, csvIPIdx, i)
+		go AnnotateInputDecode(conf, inRaw, inDecoded, &decodeWG, i)
 		decodeWG.Add(1)
 	}
 	// spawn threads for each type of annotator
