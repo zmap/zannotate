@@ -37,7 +37,7 @@ func main() {
 	flags.IntVar(&conf.Verbosity, "verbosity", 3, "log verbosity: 1 (lowest)--5 (highest)")
 	// json annotation configuration
 	flags.StringVar(&conf.InputIPFieldName, "input-ip-field", "ip", "key in JSON or column in CSV that contains IP address")
-	flags.StringVar(&conf.JSONAnnotationFieldName, "json-annotation-field", "zannotate", "key that metadata is injected at")
+	flags.StringVar(&conf.OutputAnnotationFieldName, "output-annotation-field", "zannotate", "key that metadata is injected at, used for both CSV and JSON file inputs to preserve data in the input file")
 	// encode/decode threads
 	flags.IntVar(&conf.InputDecodeThreads, "input-decode-threads", 3, "number of golang processes to decode input data (e.g., json)")
 	flags.IntVar(&conf.OutputEncodeThreads, "output-encode-threads", 3, "number of golang processes to encode output data (e.g., json)")
@@ -88,7 +88,7 @@ func main() {
 	}
 	// perform sanity checks
 	if conf.InputFileType == "ips" {
-		conf.JSONAnnotationFieldName = ""
+		conf.OutputAnnotationFieldName = ""
 	}
 
 	// perform annotation

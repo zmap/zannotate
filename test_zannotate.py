@@ -28,8 +28,18 @@ def test_rdns_csv_stdin():
     )
     assert output == unordered(
         [
-            {"ip": "1.1.1.1", "name": "cloudflare", "date": "04-04-26", "zannotate":{"rdns": {"domain_names": ["one.one.one.one"]}}},
-            {"ip": "8.8.8.8", "name": "google", "date": "04-04-26","zannotate":{"rdns": {"domain_names": ["dns.google"]}}},
+            {
+                "ip": "1.1.1.1",
+                "name": "cloudflare",
+                "date": "04-04-26",
+                "zannotate": {"rdns": {"domain_names": ["one.one.one.one"]}},
+            },
+            {
+                "ip": "8.8.8.8",
+                "name": "google",
+                "date": "04-04-26",
+                "zannotate": {"rdns": {"domain_names": ["dns.google"]}},
+            },
         ]
     )
 
@@ -51,8 +61,50 @@ def test_rdns_csv_stdin_non_standard_key_name():
     )
     assert output == unordered(
         [
-            {"ip_address": "1.1.1.1", "name": "cloudflare", "date": "04-04-26", "zannotate":{"rdns": {"domain_names": ["one.one.one.one"]}}},
-            {"ip_address": "8.8.8.8", "name": "google", "date": "04-04-26", "zannotate":{"rdns": {"domain_names": ["dns.google"]}}},
+            {
+                "ip_address": "1.1.1.1",
+                "name": "cloudflare",
+                "date": "04-04-26",
+                "zannotate": {"rdns": {"domain_names": ["one.one.one.one"]}},
+            },
+            {
+                "ip_address": "8.8.8.8",
+                "name": "google",
+                "date": "04-04-26",
+                "zannotate": {"rdns": {"domain_names": ["dns.google"]}},
+            },
+        ]
+    )
+
+
+def test_rdns_csv_stdin_non_standard_output_key():
+    input_str = textwrap.dedent("""\
+    name,date,ip
+    cloudflare,04-04-26,1.1.1.1
+    google,04-04-26,8.8.8.8
+    """)
+    output = run(
+        input_str,
+        "--rdns",
+        "--input-file-type",
+        "csv",
+        "--output-annotation-field",
+        "z_annotate_output",
+    )
+    assert output == unordered(
+        [
+            {
+                "ip": "1.1.1.1",
+                "name": "cloudflare",
+                "date": "04-04-26",
+                "z_annotate_output": {"rdns": {"domain_names": ["one.one.one.one"]}},
+            },
+            {
+                "ip": "8.8.8.8",
+                "name": "google",
+                "date": "04-04-26",
+                "z_annotate_output": {"rdns": {"domain_names": ["dns.google"]}},
+            },
         ]
     )
 
@@ -81,8 +133,18 @@ def test_rdns_csv_file(tmp_path):
     )
     assert output == unordered(
         [
-            {"ip": "1.1.1.1",  "name": "cloudflare", "date": "04-04-26", "zannotate":{"rdns": {"domain_names": ["one.one.one.one"]}}},
-            {"ip": "8.8.8.8",  "name": "google", "date": "04-04-26", "zannotate":{"rdns": {"domain_names": ["dns.google"]}}},
+            {
+                "ip": "1.1.1.1",
+                "name": "cloudflare",
+                "date": "04-04-26",
+                "zannotate": {"rdns": {"domain_names": ["one.one.one.one"]}},
+            },
+            {
+                "ip": "8.8.8.8",
+                "name": "google",
+                "date": "04-04-26",
+                "zannotate": {"rdns": {"domain_names": ["dns.google"]}},
+            },
         ]
     )
 

@@ -83,15 +83,16 @@ func csvToInProcess(record []string, headers []string, ipFieldName, annotationFi
 
 	foundIPField := false
 	for i, header := range headers {
-		if header == ipFieldName {
+		switch header {
+		case ipFieldName:
 			foundIPField = true
 			retv.Ip = net.ParseIP(record[i])
 			if retv.Ip == nil {
 				log.Fatalf("unable to parse IP at column '%d': %s", i, record[i])
 			}
-		} else if header == annotationFieldName {
+		case annotationFieldName:
 			log.Fatalf("csv headers already contains annotation key '%v'", annotationFieldName)
-		} else {
+		default:
 			outMap[header] = record[i]
 		}
 	}
@@ -157,9 +158,9 @@ func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string,
 		l := strings.TrimSuffix(line, "\n")
 		switch conf.InputFileType {
 		case "json":
-			val := jsonToInProcess(l, conf.InputIPFieldName, conf.JSONAnnotationFieldName)
-			if conf.JSONAnnotationFieldName != "" {
-				val.Out[conf.JSONAnnotationFieldName] = make(map[string]interface{})
+			val := jsonToInProcess(l, conf.InputIPFieldName, conf.OutputAnnotationFieldName)
+			if conf.OutputAnnotationFieldName != "" {
+				val.Out[conf.OutputAnnotationFieldName] = make(map[string]interface{})
 			}
 			outChan <- val
 		case "csv":
@@ -169,9 +170,9 @@ func AnnotateInputDecode(conf *GlobalConf, inChan <-chan string,
 				log.Errorf("failed to parse CSV line (%s): %v", l, err)
 				continue
 			}
-			val := csvToInProcess(row, conf.csvHeaders, conf.InputIPFieldName, conf.JSONAnnotationFieldName)
-			if conf.JSONAnnotationFieldName != "" {
-				val.Out[conf.JSONAnnotationFieldName] = make(map[string]interface{})
+			val := csvToInProcess(row, conf.csvHeaders, conf.InputIPFieldName, conf.OutputAnnotationFieldName)
+			if conf.OutputAnnotationFieldName != "" {
+				val.Out[conf.OutputAnnotationFieldName] = make(map[string]interface{})
 			}
 			outChan <- val
 		default:
@@ -277,7 +278,7 @@ func DoAnnotation(conf *GlobalConf) {
 			var annotateWG sync.WaitGroup
 			for i := 0; i < annotator.GetWorkers(); i++ {
 				go AnnotateWorker(conf, annotator.MakeAnnotator(i), lastChannel, nextChannel,
-					conf.JSONAnnotationFieldName, &annotateWG, i)
+					conf.OutputAnnotationFieldName, &annotateWG, i)
 				annotateWG.Add(1)
 			}
 			lastChannel = nextChannel
