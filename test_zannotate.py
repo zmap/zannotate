@@ -5,14 +5,18 @@ import textwrap
 
 
 def test_rdns():
-    input_str = "1.1.1.1\n8.8.8.8\n"
-    output = run(input_str, "--rdns")
-    assert output == unordered(
-        [
-            {"ip": "1.1.1.1", "rdns": {"domain_names": ["one.one.one.one"]}},
-            {"ip": "8.8.8.8", "rdns": {"domain_names": ["dns.google"]}},
-        ]
-    )
+    tests = [
+        ("normal input", "1.1.1.1\n8.8.8.8\n"),
+        ("missing trailing new-line", "1.1.1.1\n8.8.8.8"),
+    ]
+    for test in tests:
+        output = run(test[1], "--rdns")
+        assert output == unordered(
+            [
+                {"ip": "1.1.1.1", "rdns": {"domain_names": ["one.one.one.one"]}},
+                {"ip": "8.8.8.8", "rdns": {"domain_names": ["dns.google"]}},
+            ]
+        )
 
 
 def test_rdns_csv_stdin():
