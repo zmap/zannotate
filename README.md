@@ -140,6 +140,46 @@ Example Output:
 {"ip":"1.1.1.1","spur":{"as":{"number":13335,"organization":"Cloudflare, Inc."},"infrastructure":"DATACENTER","ip":"1.1.1.1","location":{"city":"Anycast","country":"ZZ","state":"Anycast"},"organization":"Taguchi Digital Marketing System"}}
 ```
 
+### Greynoise Psychic
+[Greynoise](https://greynoise.io) is an IP intelligence feed that provides metadata like threat classification and associated CVE's.
+Their Psychic data downloads provide their data feed in a database suitable for offline data enrichment.
+To use their download with `zannotate`, you'll want to download an `.mmdb` formatted file using your GreyNoise API key. 
+As of April 2026, signing up with a free account gives access to data downloads.
+
+0. Sign up for a free GreyNoise account [here](https://www.greynoise.io).
+1. Copy API key from the appropriate [section of your account](https://viz.greynoise.io/workspace/api-key).
+2. Download a `mmdb` file. Details on download parameters 
+(The below command is for downloading data for a single date - April 7th, 2026 - you can also download data for a range of days and for models of various levels of detail.
+See GreyNoise's Psychic [documentation](https://psychic.labs.greynoise.io) for more details.
+```shell
+curl -H "key: GREYNOISE_API_KEY_HERE" \
+           https://psychic.labs.greynoise.io/v1/psychic/download/2026-04-07/3/mmdb \
+           -o /tmp/m3.mmdb
+```
+
+3. Test GreyNoise data enrichment:
+
+> [!NOTE]
+> The below examples are using the exact data download from the above `curl` command. What results you see will depend on the data downloaded.
+
+```shell
+echo "14.1.105.157" | zannotate --greynoise --greynoise-database=/tmp/m3.mmdb  
+````
+Example Output:
+```json
+{"greynoise":{"classification":"malicious","cves":["CVE-2015-2051","CVE-2016-20016","CVE-2018-10561","CVE-2018-10562","CVE-2016-6277","CVE-2024-12847"],"date":"2026-04-07","handshake_complete":true,"last_seen":"2026-04-07T00:00:00Z","seen":true,"tags":["Mirai TCP Scanner","Mirai","Telnet Protocol","Generic IoT Default Password Attempt","Web Crawler","Generic Suspicious Linux Command in Request","HNAP Crawler","Telnet Login Attempt","D-Link Devices HNAP SOAPAction Header RCE Attempt","MVPower CCTV DVR RCE CVE-2016-20016 Attempt","JAWS Webserver RCE","GPON CVE-2018-10561 Router Worm","Generic ${IFS} Use in RCE Attempt","CCTV-DVR RCE","NETGEAR Command Injection CVE-2016-6277","NETGEAR DGN setup.cgi CVE-2024-12847 Command Execution Attempt","CGI Script Scanner"],"actor":"unknown"},"ip":"14.1.105.157"}
+```
+
+Note that many IPs will not be in the GreyNoise dataset, so you may see output like the following:
+```shell
+echo "1.1.1.1" | zannotate --greynoise --greynoise-database=/tmp/m3.mmdb  
+```
+
+```json
+{"ip":"1.1.1.1","greynoise":null}
+```
+
+
 # Input/Output
 
 ## Output
