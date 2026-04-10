@@ -72,7 +72,6 @@ func (a *GreyNoiseAnnotatorFactory) IsEnabled() bool {
 }
 
 func (a *GreyNoiseAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
-	// Reverse DNS Lookup
 	flags.BoolVar(&a.Enabled, "greynoise", false, "greynoise psychic data intelligence")
 	flags.StringVar(&a.DBPath, "greynoise-database", "", "path to greynoise psychic .mmdb file")
 	flags.IntVar(&a.Threads, "greynoise-threads", 2, "how many enrichment threads to use")
@@ -92,7 +91,7 @@ func (a *GreyNoiseAnnotator) GetFieldName() string {
 	return "greynoise"
 }
 
-// Annotate performs a reverse DNS lookup for the given IP address and returns the results.
+// Annotate performs a GreyNoise local lookup for the given IP address and returns the results.
 // If an error occurs or a lookup fails, it returns nil
 func (a *GreyNoiseAnnotator) Annotate(ip net.IP) interface{} {
 	addr, ok := netip.AddrFromSlice(ip)
