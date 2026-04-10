@@ -91,7 +91,7 @@ func (a *GreyNoiseAnnotator) GetFieldName() string {
 	return "greynoise"
 }
 
-// Annotate performs a reverse DNS lookup for the given IP address and returns the results.
+// Annotate performs a GreyNoise local lookup for the given IP address and returns the results.
 // If an error occurs or a lookup fails, it returns nil
 func (a *GreyNoiseAnnotator) Annotate(ip net.IP) interface{} {
 	addr, ok := netip.AddrFromSlice(ip)
