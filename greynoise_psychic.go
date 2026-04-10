@@ -72,7 +72,6 @@ func (a *GreyNoiseAnnotatorFactory) IsEnabled() bool {
 }
 
 func (a *GreyNoiseAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
-	// Reverse DNS Lookup
 	flags.BoolVar(&a.Enabled, "greynoise", false, "greynoise psychic data intelligence")
 	flags.StringVar(&a.DBPath, "greynoise-database", "", "path to greynoise psychic .mmdb file")
 	flags.IntVar(&a.Threads, "greynoise-threads", 2, "how many enrichment threads to use")
