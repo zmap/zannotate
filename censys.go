@@ -93,19 +93,24 @@ func (a *CensysAnnotator) Annotate(ip net.IP) interface{} {
 
 	res, err := a.Factory.client.Do(req)
 	if err != nil {
-		log.Fatalf("failed to annotate ip %s with censys: %v", ip.String(), err)
+		log.Debugf("failed to annotate ip %s with censys: %v", ip.String(), err)
 		return nil
 	}
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Debugf("failed to close response body: %v", err)
+		}
+	}(res.Body)
 	if res.StatusCode != http.StatusOK {
-		log.Fatalf("failed to annotate ip %s with censys: %s", ip.String(), res.Status)
+		log.Debugf("failed to annotate ip %s with censys: %s", ip.String(), res.Status)
 		return nil
 	}
 	body, _ := io.ReadAll(res.Body)
 	var result any
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		log.Fatalf("failed to parse censys response for ip %s: %v", ip.String(), err)
+		log.Debugf("failed to parse censys response for ip %s: %v", ip.String(), err)
 		return nil
 	}
 	return result

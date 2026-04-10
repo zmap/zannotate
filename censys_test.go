@@ -471,7 +471,10 @@ func newMockCensysServer(t *testing.T, expectedIP string) *httptest.Server {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(censysMockResponse))
+		_, err := w.Write([]byte(censysMockResponse))
+		if err != nil {
+			t.Fatalf("failed to write response: %v", err)
+		}
 	}))
 }
 
@@ -539,10 +542,9 @@ func BenchmarkAnnotate_HostLookup(b *testing.B) {
 	censysAPIHostLookupURL = server.URL + "/v3/global/asset/host/"
 	defer func() { censysAPIHostLookupURL = origURL }()
 
-
 	b.ResetTimer()
 	b.ReportAllocs()
-	for _ = range b.N {
+	for range b.N {
 		result := annotator.Annotate(ip)
 		if result == nil {
 			b.Fatal("expected non-nil result, got nil")
