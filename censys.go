@@ -113,7 +113,28 @@ func (a *CensysAnnotator) Annotate(ip net.IP) interface{} {
 		log.Debugf("failed to parse censys response for ip %s: %v", ip.String(), err)
 		return nil
 	}
-	return result
+	// By default, Censys' result is wrapped in a result[resource[real_data]]. We'll unwrap that here
+	dropResultCast, ok := result.(map[string]interface{})
+	if !ok {
+		log.Debugf("failed to unwrap censys response for ip %s: %v", ip.String(), result)
+		return result
+	}
+	dropResult := dropResultCast["result"]
+	if dropResult == nil {
+		log.Debugf("failed to unwrap censys response for ip %s: %v", ip.String(), result)
+		return result
+	}
+	dropResourceCast, ok := dropResult.(map[string]interface{})
+	if !ok {
+		log.Debugf("failed to unwrap censys response for ip %s: %v", ip.String(), result)
+		return result
+	}
+	dropResource := dropResourceCast["resource"]
+	if dropResource == nil {
+		log.Debugf("failed to unwrap censys response for ip %s: %v", ip.String(), result)
+		return result
+	}
+	return dropResource
 }
 
 func (a *CensysAnnotator) Close() error {
