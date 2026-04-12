@@ -521,9 +521,9 @@ func TestAnnotate_HostLookup(t *testing.T) {
 		t.Fatal("expected non-nil result, got nil")
 	}
 
-	assert.Equal(t, "1.1.1.1", result.(map[string]any)["result"].(map[string]any)["resource"].(map[string]any)["ip"])
-	assert.Equal(t, "Oceania", result.(map[string]any)["result"].(map[string]any)["resource"].(map[string]any)["location"].(map[string]any)["continent"])
-	assert.Equal(t, "DNS", result.(map[string]any)["result"].(map[string]any)["resource"].(map[string]any)["services"].([]any)[0].(map[string]any)["protocol"])
+	assert.Equal(t, "1.1.1.1", result.(map[string]any)["ip"])
+	assert.Equal(t, "Oceania", result.(map[string]any)["location"].(map[string]any)["continent"])
+	assert.Equal(t, "DNS", result.(map[string]any)["services"].([]any)[0].(map[string]any)["protocol"])
 }
 
 func TestAnnotate_NilOnError(t *testing.T) {
