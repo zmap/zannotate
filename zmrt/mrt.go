@@ -125,7 +125,8 @@ func MrtRawIterate(raw io.Reader, cb mrtMessageCallback) error {
 		var msg *mrt.MRTMessage
 		msg, err = mrt.ParseBody(buf[0:n], h)
 		if err != nil {
-			return fmt.Errorf("failed to parse mrt body: %s", err)
+			logrus.Errorf("failed to parse mrt body, will skip this mrt msg: %s", err)
+			continue
 		}
 		if err := cb(msg); err != nil {
 			return err
