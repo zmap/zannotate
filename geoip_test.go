@@ -69,11 +69,11 @@ func TestGeoIPAnnotator(t *testing.T) {
 				Traits: &GeoIP2Traits{},
 			},
 		}, {
-			testName:       "Negative Test Case, Private IP",
-			ipAddr:         net.ParseIP("192.168.0.1"),
+			testName: "Negative Test Case, Private IP",
+			ipAddr:   net.ParseIP("192.168.0.1"),
 			expectedResult: &GeoIP2Output{
-				City:               &GeoIP2City{ },
-				Country:            &GeoIP2Country{ },
+				City:               &GeoIP2City{},
+				Country:            &GeoIP2Country{},
 				Continent:          &GeoIP2Country{},
 				Postal:             &GeoIP2Postal{},
 				LatLong:            &GeoIP2LatLong{},
@@ -84,9 +84,9 @@ func TestGeoIPAnnotator(t *testing.T) {
 		},
 	}
 	factory := &GeoIP2AnnotatorFactory{
-		Path: "./data-snapshots/geolite2_country.mmdb",
-		Mode: "mmap",
-		Language: "en",
+		Path:       "./data-snapshots/geolite2_country.mmdb",
+		Mode:       "mmap",
+		Language:   "en",
 		RawInclude: "*",
 	}
 	err := factory.Initialize(nil)
