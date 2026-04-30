@@ -22,8 +22,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/osrg/gobgp/v3/pkg/packet/bgp"
-	"github.com/osrg/gobgp/v3/pkg/packet/mrt"
+	"github.com/osrg/gobgp/v4/pkg/packet/bgp"
+	"github.com/osrg/gobgp/v4/pkg/packet/mrt"
 	"github.com/sirupsen/logrus"
 )
 
@@ -112,20 +112,21 @@ func MrtRawIterate(raw io.Reader, cb mrtMessageCallback) error {
 		} else if err != nil {
 			return fmt.Errorf("failed to read: %s", err)
 		}
-		h := &mrt.MRTHeader{}
-		if err := h.DecodeFromBytes(buf[0:n]); err != nil {
-			return errors.New("failed to parse")
+		h, err := mrt.ParseHeader(buf[0:n])
+		if err != nil {
+			return fmt.Errorf("failed to parse header: %s", err)
 		}
 		buf = make([]byte, h.Len)
 		if n, err = io.ReadFull(buffered, buf); err != nil {
 			return errors.New("failed to read")
 		}
-		if msg, err := mrt.ParseMRTBody(h, buf[0:n]); err != nil {
-			return fmt.Errorf("failed to parse: %s", err)
-		} else {
-			if err := cb(msg); err != nil {
-				return err
-			}
+		var msg *mrt.MRTMessage
+		msg, err = mrt.ParseBody(buf[0:n], h)
+		if err != nil {
+			return fmt.Errorf("failed to parse mrt body: %s", err)
+		}
+		if err := cb(msg); err != nil {
+			return err
 		}
 	}
 }
@@ -200,12 +201,12 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 			out.SequenceNumber = rib.SequenceNumber
 			out.Prefix = rib.Prefix.String()
 			out.From.AS = peers[e.PeerIndex].AS
-			out.From.ID = peers[e.PeerIndex].BgpId
-			out.From.Address = peers[e.PeerIndex].IpAddress
+			out.From.ID = peers[e.PeerIndex].BgpId.AsSlice()
+			out.From.Address = peers[e.PeerIndex].IpAddress.AsSlice()
 
 			out.PeerIndex = e.PeerIndex
 			out.PathIdentifier = e.PathIdentifier
-			out.AFI = rib.Prefix.AFI()
+			out.AFI = rib.Family.Afi()
 
 			out.OriginatedTime = time.Unix(int64(e.OriginatedTime), 0)
 			out.Timestamp = time.Unix(int64(msg.Header.Timestamp), 0)
@@ -220,7 +221,7 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 						}
 					}
 				} else if nh, ok := a.(*bgp.PathAttributeNextHop); ok {
-					out.Attributes.NextHop = nh.Value
+					out.Attributes.NextHop = nh.Value.AsSlice()
 				} else if meh, ok := a.(*bgp.PathAttributeMultiExitDisc); ok {
 					out.Attributes.MultiExitDesc = meh.Value
 				} else if lp, ok := a.(*bgp.PathAttributeLocalPref); ok {
@@ -228,7 +229,7 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 				} else if agg, ok := a.(*bgp.PathAttributeAggregator); ok {
 					var f From
 					f.AS = agg.Value.AS
-					f.Address = agg.Value.Address
+					f.Address = agg.Value.Address.AsSlice()
 					out.Attributes.Aggregator = &f
 				} else if comm, ok := a.(*bgp.PathAttributeCommunities); ok {
 					l := []string{}
@@ -242,7 +243,7 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 					}
 					out.Attributes.Communities = l
 				} else if orgId, ok := a.(*bgp.PathAttributeOriginatorId); ok {
-					out.Attributes.OriginatorId = orgId.Value
+					out.Attributes.OriginatorId = orgId.Value.AsSlice()
 				} else if origin, ok := a.(*bgp.PathAttributeOrigin); ok {
 					v := uint8(origin.Value)
 					var typ string
