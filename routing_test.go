@@ -9,7 +9,7 @@
 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 * implied. See the License for the specific language governing
 * permissions and limitations under the License.
-*/
+ */
 
 package zannotate
 
@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zmap/zannotate/zrouting"
 )
 
@@ -51,7 +52,9 @@ func TestMain(m *testing.M) {
 	if _, err := tmpFile.Write(decompressed); err != nil {
 		log.Fatalf("failed to write temp file: %v", err)
 	}
-	tmpFile.Close()
+	if err = tmpFile.Close(); err != nil {
+		log.Fatalf("failed to close temp file: %v", err)
+	}
 
 	// Run tests, then clean up
 	code := m.Run()
