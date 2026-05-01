@@ -1,0 +1,265 @@
+/*
+ * ZAnnotate Copyright 2026 Regents of the University of Michigan
+ *
+ * Licensed under the Apache License, Version 2.0 (the License); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
+package zannotate
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+)
+
+type dnsTXTLookupFunc func(ctx context.Context, host string) ([]string, error)
+
+// ASNLookup contains the result of a query to ASX.asn.cymru.com
+type ASNLookup struct {
+	ASN               uint32 `json:"asn,omitempty"`
+	CountryCode       string `json:"country_code,omitempty"`
+	Registry          string `json:"registry,omitempty"`
+	ASNAllocationDate string `json:"asn_allocation_date,omitempty"`
+	ASNDescription    string `json:"asn_description,omitempty"`
+}
+
+// CymruResult stores the format for the result from the Cymru annotator
+type CymruResult struct {
+	OriginASN     string                                                   `json:"origin_asn,omitempty"`
+	PeerASNs      []uint32                                                 `json:"peer_asns,omitempty"`
+	ASNLookup     *ASNLookup                                               `json:"asn_details,omitempty"`
+	PrefixDetails *PrefixResult                                            `json:"prefix_details,omitempty"`
+}
+
+type PrefixResult struct {
+	Prefix         string `json:"prefix,omitempty"`
+	CountryCode    string `json:"country_code,omitempty"`
+	Registry       string `json:"registry,omitempty"`
+	AllocationDate string `json:"allocation_date,omitempty"`
+}
+
+func (result *CymruResult) populateASNDetails(ctx context.Context, lookupFunc dnsTXTLookupFunc, originASN string) error {
+	const asnURL = "asn.cymru.com"
+	url := "AS" + originASN + "." + asnURL
+	parts, err := result.commonLookup(ctx, url, lookupFunc)
+	if err != nil {
+		return err
+	}
+	if len(parts) != 5 {
+		return fmt.Errorf("asn endpoint returned unexpected result: %s", parts)
+	}
+	result.ASNLookup = &ASNLookup{
+		CountryCode:       parts[1],
+		Registry:          parts[2],
+		ASNAllocationDate: parts[3],
+		ASNDescription:    parts[4],
+	}
+	asn, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return fmt.Errorf("ASN could not be parsed: %v", err)
+	}
+	result.ASNLookup.ASN = uint32(asn)
+	return nil
+}
+
+func (result *CymruResult) populatePeerDetails(ctx context.Context, lookupFunc dnsTXTLookupFunc, ip net.IP) error {
+	const peerURL = "peer.asn.cymru.com"
+	url := convertIPToDNSFormat(ip) + "." + peerURL
+	parts, err := result.commonLookup(ctx, url, lookupFunc)
+	if err != nil {
+		return err
+	}
+	if len(parts) != 5 {
+		return fmt.Errorf("peer endpoint returned unexpected result: %s", parts)
+	}
+	// PopulateOrigin will take care of most of the fields here, we're just interested in the peer ASNs
+	var peerStrs []string
+	for _, peer := range strings.Split(parts[0], " ") {
+		if len(peer) > 0 {
+			peerStrs = append(peerStrs, peer)
+		}
+	}
+	result.PeerASNs = make([]uint32, 0, len(peerStrs))
+	for _, peerStr := range peerStrs {
+		peerStr = strings.TrimSpace(peerStr)
+		var cast uint64
+		cast, err = strconv.ParseUint(peerStr, 10, 32)
+		if err != nil {
+			return fmt.Errorf("peer endpoint returned peers (%s) that are invalid: %v", parts, err)
+		}
+		result.PeerASNs = append(result.PeerASNs, uint32(cast))
+	}
+	return nil
+}
+
+func (result *CymruResult) commonLookup(ctx context.Context, url string, lookupFunc dnsTXTLookupFunc) ([]string, error) {
+	resp, err := lookupFunc(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	// Ex: "46749 | 171.64.0.0/14 | US | arin | 1994-08-22"
+	// 2914 6461 6939 13335 23352 | 1.1.1.0/24 | AU | apnic | 2011-08-11
+	if len(resp) == 0 {
+		return nil, errors.New("no results found")
+	}
+	parts := strings.Split(resp[0], "|")
+	for i, part := range parts {
+		parts[i] = strings.TrimSpace(part)
+	}
+	return parts, nil
+}
+
+func (result *CymruResult) populateOriginDetails(ctx context.Context, lookupFunc dnsTXTLookupFunc, ip net.IP) error {
+	cymruOriginURL := "origin.asn.cymru.com"
+	if ip.To4() == nil {
+		// IPv4 uses a different URL
+		cymruOriginURL = "origin6.asn.cymru.com"
+	}
+	url := convertIPToDNSFormat(ip) + "." + cymruOriginURL
+	parts, err := result.commonLookup(ctx, url, lookupFunc)
+	if err != nil {
+		return err
+	}
+	if len(parts) != 5 {
+		return fmt.Errorf("origin endpoint returned unexpected result: %s", parts)
+	}
+
+	result.PrefixDetails = &PrefixResult{
+		Prefix:         parts[1],
+		CountryCode:    parts[2],
+		Registry:       parts[3],
+		AllocationDate: parts[4],
+	}
+	// sanity check ASN
+	_, err = strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return fmt.Errorf("origin ASN (%s) could not be parsed: %v", parts[0], err)
+	}
+	result.OriginASN = parts[0]
+	return nil
+}
+
+type CymruAnnotatorFactory struct {
+	BasePluginConf
+	timeoutSecs int
+	mockDNSFunc   func(ctx context.Context, name string) ([]string, error) // Used to write unit tests, mocks the DNS lookup fn
+}
+
+type CymruAnnotator struct {
+	Factory *CymruAnnotatorFactory
+	Id      int
+}
+
+// Cymru Annotator Factory (Global)
+
+func (a *CymruAnnotatorFactory) MakeAnnotator(i int) Annotator {
+	var v CymruAnnotator
+	v.Factory = a
+	v.Id = i
+	return &v
+}
+
+func (a *CymruAnnotatorFactory) Initialize(_ *GlobalConf) error {
+	if a.mockDNSFunc == nil {
+		// use default, we're not in testing
+		a.mockDNSFunc = net.DefaultResolver.LookupTXT
+	}
+	return nil
+}
+
+func (a *CymruAnnotatorFactory) GetWorkers() int {
+	return a.Threads
+}
+
+func (a *CymruAnnotatorFactory) Close() error {
+	return nil
+}
+
+func (a *CymruAnnotatorFactory) IsEnabled() bool {
+	return a.Enabled
+}
+
+func (a *CymruAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
+	flags.BoolVar(&a.Enabled, "cymru", false, "enrich with Cymru's ASN and prefix data (https://www.team-cymru.com/IP-ASN-mapping.html)")
+	flags.IntVar(&a.Threads, "cymru-threads", 100, "how many threads to use for Cymru lookups")
+	flags.IntVar(&a.timeoutSecs, "cymru-timeout", 2, "timeout for each Cymru query, in seconds")
+}
+
+// Cymru Annotator (Per-Worker)
+func (a *CymruAnnotator) Initialize() error {
+	return nil
+}
+
+func (a *CymruAnnotator) GetFieldName() string {
+	return "cymru"
+}
+
+// Annotate performs a Cymru data lookup for the given IP address and returns the results.
+// If an error occurs or a lookup fails, it returns nil
+func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
+	log.Debugf("IP (%s)in URL form: %s", ip.String(), convertIPToDNSFormat(ip))
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Duration(a.Factory.timeoutSecs)*time.Second)
+	defer cancelFn()
+	result := &CymruResult{}
+	err := result.populateOriginDetails(ctx, a.Factory.mockDNSFunc, ip)
+	if err != nil {
+		log.Warnf("error fetching cymru origin details for ip %s: %v", ip.String(), err)
+		return nil
+	}
+	err = result.populatePeerDetails(ctx, a.Factory.mockDNSFunc, ip)
+	if err != nil {
+		log.Warnf("error fetching cymru peer details for ip %s: %v", ip.String(), err)
+		return nil
+	}
+	if len(result.OriginASN) == 0 {
+		log.Warnf("no ASN found for ip %s in cymru origin lookup", ip.String())
+		return nil
+	}
+	err = result.populateASNDetails(ctx, a.Factory.mockDNSFunc, result.OriginASN)
+	if err != nil {
+		log.Errorf("error fetching cymru ASN details for ip %s: %v", ip.String(), err)
+	}
+	return result
+}
+
+func (a *CymruAnnotator) Close() error {
+	return nil
+}
+
+func init() {
+	s := new(CymruAnnotatorFactory)
+	RegisterAnnotator(s)
+}
+
+// convertIPToDNSFormat converts an IP into the string representation Cymru uses
+// For IPv4, it wants the octets reversed with "." seperating
+// For IPv6, queries are formed by reversing the nibbles of the address, and placing dots between each
+// nibble, just like an IPv6 reverse DNS lookup"
+func convertIPToDNSFormat(ip net.IP) string {
+	if ipv4 := ip.To4(); ipv4 != nil {
+		return fmt.Sprintf("%d.%d.%d.%d", ipv4[3], ipv4[2], ipv4[1], ipv4[0])
+	}
+	ipLength := 16
+	nibbles := make([]string, 0, ipLength*2) // IPv4: 4 bytes, IPv6: 16 bytes, each becomes 2 nibbles
+	for i := ipLength - 1; i >= 0; i-- {
+		// Extract low and high nibbles
+		nibbles = append(nibbles, fmt.Sprintf("%x", ip[i]&0x0f)) // low nibble
+		nibbles = append(nibbles, fmt.Sprintf("%x", ip[i]>>4))   // high nibble
+	}
+	return strings.Join(nibbles, ".")
+}
