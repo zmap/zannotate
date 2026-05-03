@@ -70,8 +70,8 @@ func TestPopulateOriginDetails(t *testing.T) {
 			mockResult: []string{"32 | 171.64.0.0/14 | US | arin | 1994-08-22"},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				if result.OriginASN != "32" {
-					t.Errorf("expected OriginASN 32, got %s", result.OriginASN)
+				if result.OriginASNs != "32" {
+					t.Errorf("expected OriginASN 32, got %s", result.OriginASNs)
 				}
 				if result.PrefixDetails.Prefix != "171.64.0.0/14" {
 					t.Errorf("expected Prefix 171.64.0.0/14, got %s", result.PrefixDetails.Prefix)
@@ -83,6 +83,30 @@ func TestPopulateOriginDetails(t *testing.T) {
 					t.Errorf("expected Registry arin, got %s", result.PrefixDetails.Registry)
 				}
 				if result.PrefixDetails.AllocationDate != "1994-08-22" {
+					t.Errorf("expected AllocationDate 1994-08-22, got %s", result.PrefixDetails.AllocationDate)
+				}
+			},
+		},
+		{
+			name:       "valid origin result, 2+ p",
+			ip:         net.ParseIP("34.114.10.22"),
+			mockResult: []string{"15169 19527 | 34.112.0.0/14 | US | arin | 2018-09-28"},
+			mockErr:    nil,
+			validate: func(t *testing.T, result *CymruResult) {
+				expectedOriginASNs := []string{"15169", "19527"}
+				if reflect.DeepEqual(result.OriginASNs, expectedOriginASNs) {
+					t.Errorf("expected OriginASN %v, got %s", expectedOriginASNs, result.OriginASNs)
+				}
+				if result.PrefixDetails.Prefix != "34.112.0.0/14" {
+					t.Errorf("expected Prefix 34.112.0.0/14, got %s", result.PrefixDetails.Prefix)
+				}
+				if result.PrefixDetails.CountryCode != "US" {
+					t.Errorf("expected CountryCode US, got %s", result.PrefixDetails.CountryCode)
+				}
+				if result.PrefixDetails.Registry != "arin" {
+					t.Errorf("expected Registry arin, got %s", result.PrefixDetails.Registry)
+				}
+				if result.PrefixDetails.AllocationDate != "2018-09-28" {
 					t.Errorf("expected AllocationDate 1994-08-22, got %s", result.PrefixDetails.AllocationDate)
 				}
 			},
@@ -121,8 +145,8 @@ func TestPopulateOriginDetails(t *testing.T) {
 			mockResult: []string{"  32  |  171.64.0.0/14  |  US  |  arin  |  1994-08-22  "},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				if result.OriginASN != "32" {
-					t.Errorf("expected OriginASN 32 after trimming, got %s", result.OriginASN)
+				if result.OriginASNs != "32" {
+					t.Errorf("expected OriginASN 32 after trimming, got %s", result.OriginASNs)
 				}
 				if result.PrefixDetails.CountryCode != "US" {
 					t.Errorf("expected CountryCode US after trimming, got %s", result.PrefixDetails.CountryCode)
@@ -400,8 +424,8 @@ func TestCymruAnnotate(t *testing.T) {
 				asnResp:    "13335 | US | arin | 2010-07-14 | CLOUDFLARENET - Cloudflare, Inc., US",
 			},
 			expectedResponse: &CymruResult{
-				OriginASN: "13335",
-				PeerASNs:  []uint32{2914, 6461, 6939, 13335, 23352},
+				OriginASNs: "13335",
+				PeerASNs:   []uint32{2914, 6461, 6939, 13335, 23352},
 				ASNLookup: &ASNLookup{
 					ASN:               13335,
 					CountryCode:       "US",

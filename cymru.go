@@ -40,10 +40,10 @@ type ASNLookup struct {
 
 // CymruResult stores the format for the result from the Cymru annotator
 type CymruResult struct {
-	OriginASN     string                                                   `json:"origin_asn,omitempty"`
-	PeerASNs      []uint32                                                 `json:"peer_asns,omitempty"`
-	ASNLookup     *ASNLookup                                               `json:"asn_details,omitempty"`
-	PrefixDetails *PrefixResult                                            `json:"prefix_details,omitempty"`
+	OriginASNs    []uint32              `json:"origin_asns,omitempty"`
+	PeerASNs      []uint32              `json:"peer_asns,omitempty"`
+	ASNLookup     map[string]*ASNLookup `json:"asn_details,omitempty"` // both Peer and Origin ASN Details
+	PrefixDetails *PrefixResult         `json:"prefix_details,omitempty"`
 }
 
 type PrefixResult struct {
@@ -63,7 +63,10 @@ func (result *CymruResult) populateASNDetails(ctx context.Context, lookupFunc dn
 	if len(parts) != 5 {
 		return fmt.Errorf("asn endpoint returned unexpected result: %s", parts)
 	}
-	result.ASNLookup = &ASNLookup{
+	if result.ASNLookup == nil {
+		result.ASNLookup = make(map[string]*ASNLookup)
+	}
+	result.ASNLookup[originASN] = &ASNLookup{
 		CountryCode:       parts[1],
 		Registry:          parts[2],
 		ASNAllocationDate: parts[3],
@@ -73,7 +76,7 @@ func (result *CymruResult) populateASNDetails(ctx context.Context, lookupFunc dn
 	if err != nil {
 		return fmt.Errorf("ASN could not be parsed: %v", err)
 	}
-	result.ASNLookup.ASN = uint32(asn)
+	result.ASNLookup[originASN].ASN = uint32(asn)
 	return nil
 }
 
@@ -145,19 +148,23 @@ func (result *CymruResult) populateOriginDetails(ctx context.Context, lookupFunc
 		Registry:       parts[3],
 		AllocationDate: parts[4],
 	}
-	// sanity check ASN
-	_, err = strconv.ParseUint(parts[0], 10, 32)
-	if err != nil {
-		return fmt.Errorf("origin ASN (%s) could not be parsed: %v", parts[0], err)
+	asnsStr := strings.Split(parts[0], " ")
+	result.OriginASNs = make([]uint32, 0, len(asnsStr))
+	for _, originASN := range asnsStr{
+		asn := strings.TrimSpace(originASN)
+		asnInt, err := strconv.ParseUint(asn, 10, 32)
+		if err != nil {
+			return fmt.Errorf("origin ASN (%s) could not be parsed: %v", originASN, err)
+		}
+		result.OriginASNs = append(result.OriginASNs, uint32(asnInt))
 	}
-	result.OriginASN = parts[0]
 	return nil
 }
 
 type CymruAnnotatorFactory struct {
 	BasePluginConf
 	timeoutSecs int
-	mockDNSFunc   func(ctx context.Context, name string) ([]string, error) // Used to write unit tests, mocks the DNS lookup fn
+	mockDNSFunc func(ctx context.Context, name string) ([]string, error) // Used to write unit tests, mocks the DNS lookup fn
 }
 
 type CymruAnnotator struct {
@@ -197,7 +204,7 @@ func (a *CymruAnnotatorFactory) IsEnabled() bool {
 func (a *CymruAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "cymru", false, "enrich with Cymru's ASN and prefix data (https://www.team-cymru.com/IP-ASN-mapping.html)")
 	flags.IntVar(&a.Threads, "cymru-threads", 100, "how many threads to use for Cymru lookups")
-	flags.IntVar(&a.timeoutSecs, "cymru-timeout", 2, "timeout for each Cymru query, in seconds")
+	flags.IntVar(&a.timeoutSecs, "cymru-timeout", 5, "timeout for each Cymru query, in seconds")
 }
 
 // Cymru Annotator (Per-Worker)
@@ -217,22 +224,37 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 	defer cancelFn()
 	result := &CymruResult{}
 	err := result.populateOriginDetails(ctx, a.Factory.mockDNSFunc, ip)
-	if err != nil {
-		log.Warnf("error fetching cymru origin details for ip %s: %v", ip.String(), err)
+	var dnsErr *net.DNSError
+	if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+		// No record of this IP in Cymru, cannot continue
+		log.Debugf("IP (%s) not found in Cymru data", ip.String())
+		return nil
+	} else if err != nil {
+		log.Errorf("error fetching cymru origin details for ip %s: %v", ip.String(), err)
 		return nil
 	}
 	err = result.populatePeerDetails(ctx, a.Factory.mockDNSFunc, ip)
-	if err != nil {
-		log.Warnf("error fetching cymru peer details for ip %s: %v", ip.String(), err)
+	if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+		// No record of this IP in Cymru, cannot continue
+		log.Debugf("IP (%s) not found in Cymru data", ip.String())
+		return nil
+	} else if err != nil {
+		log.Errorf("error fetching cymru peer details for ip %s: %v", ip.String(), err)
 		return nil
 	}
-	if len(result.OriginASN) == 0 {
+	if len(result.OriginASNs) == 0 {
 		log.Warnf("no ASN found for ip %s in cymru origin lookup", ip.String())
 		return nil
 	}
-	err = result.populateASNDetails(ctx, a.Factory.mockDNSFunc, result.OriginASN)
-	if err != nil {
-		log.Errorf("error fetching cymru ASN details for ip %s: %v", ip.String(), err)
+	for _, asn := range append(result.OriginASNs, result.PeerASNs...) {
+		err = result.populateASNDetails(ctx, a.Factory.mockDNSFunc, strconv.Itoa(int(asn)))
+		if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+			// No record of this IP in Cymru, cannot continue
+			log.Debugf("IP (%s) not found in Cymru data", ip.String())
+			return nil
+		} else if err != nil {
+			log.Errorf("error fetching cymru ASN details for ip %s: %v", ip.String(), err)
+		}
 	}
 	return result
 }
@@ -263,3 +285,6 @@ func convertIPToDNSFormat(ip net.IP) string {
 	}
 	return strings.Join(nibbles, ".")
 }
+
+// TODO allign error logging behavior, we're mixing WARN and ERR
+// Seeing issues on running larger numbers of IPs, dig into that
