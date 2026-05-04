@@ -41,6 +41,8 @@ type GeoIPASNAnnotator struct {
 	Id      int
 }
 
+func (fact *GeoIPASNAnnotatorFactory) GroupName() string { return "GeoASN" }
+
 func (fact *GeoIPASNAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&fact.Enabled, "geoasn", false, "annotate with Maxmind GeoLite/GeoIP ASN data")
 	flags.StringVar(&fact.Path, "geoasn-database", "", "path to Maxmind ASN database")

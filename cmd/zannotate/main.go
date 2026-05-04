@@ -16,6 +16,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"maps"
 	"os"
 	"slices"
 
@@ -41,10 +43,7 @@ func main() {
 	// encode/decode threads
 	flags.IntVar(&conf.InputDecodeThreads, "input-decode-threads", 3, "number of golang processes to decode input data (e.g., json)")
 	flags.IntVar(&conf.OutputEncodeThreads, "output-encode-threads", 3, "number of golang processes to encode output data (e.g., json)")
-	// add the flags defined by each of the annotation modules
-	for _, annotator := range zannotate.Annotators {
-		annotator.AddFlags(flags)
-	}
+	prepareUsageString(flags) // Constructs the --help string
 	// parse
 	err := flags.Parse(os.Args[1:])
 	if err != nil {
@@ -93,4 +92,50 @@ func main() {
 
 	// perform annotation
 	zannotate.DoAnnotation(&conf)
+}
+
+func prepareUsageString(flags *flag.FlagSet) {
+	// Build grouped flag help: snapshot flags before each annotator registers its own.
+	type flagGroup struct {
+		name  string
+		flags []string
+	}
+	snapshot := func() map[string]bool {
+		seen := make(map[string]bool)
+		flags.VisitAll(func(f *flag.Flag) { seen[f.Name] = true })
+		return seen
+	}
+	groups := make([]flagGroup, 0, 1 + len(zannotate.Annotators)) // Global options + each annotator
+	// Collect the global flags registered above.
+	globalFlags := snapshot()
+	globalNames := slices.Collect(maps.Keys(globalFlags))
+	groups = append(groups, flagGroup{"Global", globalNames})
+	// add the flags defined by each of the annotation modules
+	for _, annotator := range zannotate.Annotators {
+		pre := snapshot()
+		annotator.AddFlags(flags)
+		var added []string
+		flags.VisitAll(func(f *flag.Flag) {
+			if !pre[f.Name] {
+				added = append(added, f.Name)
+			}
+		})
+		if len(added) > 0 {
+			groups = append(groups, flagGroup{annotator.GroupName(), added})
+		}
+	}
+	flags.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] <-module [module-options]>...\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "At least one annotation module must be specified (e.g. -geoip2, -rdns, -routing).\n\n")
+		for _, g := range groups {
+			fmt.Fprintf(os.Stderr, "\n%s Options:\n", g.name)
+			// Create a temporary FlagSet containing only this group's flags so we
+			// can delegate formatting to PrintDefaults.
+			tmp := flag.NewFlagSet("", flag.ContinueOnError)
+			for _, name := range g.flags {
+				tmp.Var(flags.Lookup(name).Value, name, flags.Lookup(name).Usage)
+			}
+			tmp.PrintDefaults()
+		}
+	}
 }

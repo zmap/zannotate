@@ -236,6 +236,8 @@ func (a *IPInfoAnnotatorFactory) IsEnabled() bool {
 	return a.Enabled
 }
 
+func (a *IPInfoAnnotatorFactory) GroupName() string { return "IPInfo" }
+
 func (a *IPInfoAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "ipinfo", false, "annotate with IPInfo.io data using a local MaxMind DB file")
 	flags.StringVar(&a.DatabaseFilePath, "ipinfo-database", "", "path to MaxMind DB data file for IPInfo.io annotation")

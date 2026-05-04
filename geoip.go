@@ -92,6 +92,8 @@ type GeoIP2Annotator struct {
 }
 
 // GeoIP2 Annotator Factory (Global)
+func (a *GeoIP2AnnotatorFactory) GroupName() string { return "GeoIP2" }
+
 func (a *GeoIP2AnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "geoip2", false, "annotate with Maxmind GeoIP2/GeoLite data")
 	flags.StringVar(&a.Path, "geoip2-database", "",

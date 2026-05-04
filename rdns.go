@@ -46,6 +46,8 @@ type RDNSAnnotator struct {
 
 // RDNS Annotator Factory (Global)
 
+func (a *RDNSAnnotatorFactory) GroupName() string { return "Reverse DNS" }
+
 func (a *RDNSAnnotatorFactory) MakeAnnotator(i int) Annotator {
 	var v RDNSAnnotator
 	v.Factory = a

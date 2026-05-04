@@ -42,6 +42,8 @@ type RoutingAnnotator struct {
 }
 
 // Routing Annotator Factory (Global)
+func (a *RoutingAnnotatorFactory) GroupName() string { return "Routing/BGP" }
+
 func (a *RoutingAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "routing", false, "annotate with origin AS lookup")
 	flags.StringVar(&a.RoutingTablePath, "routing-mrt-file", "",
