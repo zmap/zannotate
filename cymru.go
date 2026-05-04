@@ -25,6 +25,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zmap/dns"
+	"github.com/zmap/zdns/v2/src/zdns"
 )
 
 type dnsTXTLookupFunc func(ctx context.Context, host string) ([]string, error)
@@ -42,7 +44,7 @@ type ASNLookup struct {
 type CymruResult struct {
 	OriginASNs    []uint32              `json:"origin_asns,omitempty"`
 	PeerASNs      []uint32              `json:"peer_asns,omitempty"`
-	ASNLookup     map[string]*ASNLookup `json:"asn_details,omitempty"` // both Peer and Origin ASN Details
+	ASNLookup     map[uint32]*ASNLookup `json:"asn_details,omitempty"` // both Peer and Origin ASN Details
 	PrefixDetails *PrefixResult         `json:"prefix_details,omitempty"`
 }
 
@@ -53,9 +55,9 @@ type PrefixResult struct {
 	AllocationDate string `json:"allocation_date,omitempty"`
 }
 
-func (result *CymruResult) populateASNDetails(ctx context.Context, lookupFunc dnsTXTLookupFunc, originASN string) error {
+func (result *CymruResult) populateASNDetails(ctx context.Context, lookupFunc dnsTXTLookupFunc, originASN uint32) error {
 	const asnURL = "asn.cymru.com"
-	url := "AS" + originASN + "." + asnURL
+	url := "AS" + strconv.Itoa(int(originASN)) + "." + asnURL
 	parts, err := result.commonLookup(ctx, url, lookupFunc)
 	if err != nil {
 		return err
@@ -64,7 +66,7 @@ func (result *CymruResult) populateASNDetails(ctx context.Context, lookupFunc dn
 		return fmt.Errorf("asn endpoint returned unexpected result: %s", parts)
 	}
 	if result.ASNLookup == nil {
-		result.ASNLookup = make(map[string]*ASNLookup)
+		result.ASNLookup = make(map[uint32]*ASNLookup)
 	}
 	result.ASNLookup[originASN] = &ASNLookup{
 		CountryCode:       parts[1],
@@ -72,11 +74,7 @@ func (result *CymruResult) populateASNDetails(ctx context.Context, lookupFunc dn
 		ASNAllocationDate: parts[3],
 		ASNDescription:    parts[4],
 	}
-	asn, err := strconv.ParseUint(parts[0], 10, 32)
-	if err != nil {
-		return fmt.Errorf("ASN could not be parsed: %v", err)
-	}
-	result.ASNLookup[originASN].ASN = uint32(asn)
+	result.ASNLookup[originASN].ASN = originASN
 	return nil
 }
 
@@ -150,7 +148,7 @@ func (result *CymruResult) populateOriginDetails(ctx context.Context, lookupFunc
 	}
 	asnsStr := strings.Split(parts[0], " ")
 	result.OriginASNs = make([]uint32, 0, len(asnsStr))
-	for _, originASN := range asnsStr{
+	for _, originASN := range asnsStr {
 		asn := strings.TrimSpace(originASN)
 		asnInt, err := strconv.ParseUint(asn, 10, 32)
 		if err != nil {
@@ -163,13 +161,17 @@ func (result *CymruResult) populateOriginDetails(ctx context.Context, lookupFunc
 
 type CymruAnnotatorFactory struct {
 	BasePluginConf
-	timeoutSecs int
-	mockDNSFunc func(ctx context.Context, name string) ([]string, error) // Used to write unit tests, mocks the DNS lookup fn
+	RawResolvers string
+	zdnsConfig   *zdns.ResolverConfig
+	timeoutSecs  int
+	mockDNSFunc  dnsTXTLookupFunc // Used to write unit tests, mocks the DNS lookup fn
 }
 
 type CymruAnnotator struct {
-	Factory *CymruAnnotatorFactory
-	Id      int
+	Factory      *CymruAnnotatorFactory
+	Id           int
+	zdnsResolver *zdns.Resolver
+	lookupFunc   dnsTXTLookupFunc
 }
 
 // Cymru Annotator Factory (Global)
@@ -182,9 +184,24 @@ func (a *CymruAnnotatorFactory) MakeAnnotator(i int) Annotator {
 }
 
 func (a *CymruAnnotatorFactory) Initialize(_ *GlobalConf) error {
-	if a.mockDNSFunc == nil {
-		// use default, we're not in testing
-		a.mockDNSFunc = net.DefaultResolver.LookupTXT
+	if a.mockDNSFunc != nil {
+		return nil // test mode, skip resolver setup
+	}
+	a.zdnsConfig = zdns.NewResolverConfig()
+	if len(strings.TrimSpace(a.RawResolvers)) > 0 {
+		for _, resolver := range strings.Split(a.RawResolvers, ",") {
+			trimmed := strings.TrimSpace(resolver)
+			ip := net.ParseIP(trimmed)
+			if ip == nil {
+				return fmt.Errorf("failed to parse dns server IP address: %s", trimmed)
+			}
+			ns := zdns.NameServer{IP: ip, Port: 53}
+			if ip.To4() != nil {
+				a.zdnsConfig.ExternalNameServersV4 = append(a.zdnsConfig.ExternalNameServersV4, ns)
+			} else {
+				a.zdnsConfig.ExternalNameServersV6 = append(a.zdnsConfig.ExternalNameServersV6, ns)
+			}
+		}
 	}
 	return nil
 }
@@ -204,12 +221,45 @@ func (a *CymruAnnotatorFactory) IsEnabled() bool {
 func (a *CymruAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "cymru", false, "enrich with Cymru's ASN and prefix data (https://www.team-cymru.com/IP-ASN-mapping.html)")
 	flags.IntVar(&a.Threads, "cymru-threads", 100, "how many threads to use for Cymru lookups")
-	flags.IntVar(&a.timeoutSecs, "cymru-timeout", 5, "timeout for each Cymru query, in seconds")
+	flags.IntVar(&a.timeoutSecs, "cymru-timeout", 5, "timeout for each Cymru annotation, in seconds")
+	flags.StringVar(&a.RawResolvers, "cymru-dns-servers", "", "list of DNS servers to use for Cymru TXT lookups, comma-separated IPs. If empty, uses system defaults")
 }
 
 // Cymru Annotator (Per-Worker)
-func (a *CymruAnnotator) Initialize() error {
+func (a *CymruAnnotator) Initialize() (err error) {
+	if a.Factory.mockDNSFunc != nil {
+		a.lookupFunc = a.Factory.mockDNSFunc
+
+	}
+	a.zdnsResolver, err = zdns.InitResolver(a.Factory.zdnsConfig)
+	if err != nil {
+		return fmt.Errorf("failed to initialize zdns resolver: %w", err)
+	}
+	a.lookupFunc = a.zdnsTXTLookup
 	return nil
+}
+
+func (a *CymruAnnotator) zdnsTXTLookup(ctx context.Context, host string) ([]string, error) {
+	q := zdns.Question{
+		Type:  dns.TypeTXT,
+		Class: dns.ClassINET,
+		Name:  host,
+	}
+	res, _, status, err := a.zdnsResolver.ExternalLookup(ctx, &q, nil)
+
+	if status == zdns.StatusNXDomain {
+		return nil, &net.DNSError{IsNotFound: true, Name: host}
+	}
+	if err != nil {
+		return nil, err
+	}
+	var txts []string
+	for _, answer := range res.Answers {
+		if castAns, ok := answer.(zdns.Answer); ok && castAns.Type == "TXT" {
+			txts = append(txts, castAns.Answer)
+		}
+	}
+	return txts, nil
 }
 
 func (a *CymruAnnotator) GetFieldName() string {
@@ -223,7 +273,7 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Duration(a.Factory.timeoutSecs)*time.Second)
 	defer cancelFn()
 	result := &CymruResult{}
-	err := result.populateOriginDetails(ctx, a.Factory.mockDNSFunc, ip)
+	err := result.populateOriginDetails(ctx, a.lookupFunc, ip)
 	var dnsErr *net.DNSError
 	if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
 		// No record of this IP in Cymru, cannot continue
@@ -233,7 +283,7 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 		log.Errorf("error fetching cymru origin details for ip %s: %v", ip.String(), err)
 		return nil
 	}
-	err = result.populatePeerDetails(ctx, a.Factory.mockDNSFunc, ip)
+	err = result.populatePeerDetails(ctx, a.lookupFunc, ip)
 	if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
 		// No record of this IP in Cymru, cannot continue
 		log.Debugf("IP (%s) not found in Cymru data", ip.String())
@@ -247,7 +297,7 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 		return nil
 	}
 	for _, asn := range append(result.OriginASNs, result.PeerASNs...) {
-		err = result.populateASNDetails(ctx, a.Factory.mockDNSFunc, strconv.Itoa(int(asn)))
+		err = result.populateASNDetails(ctx, a.lookupFunc, asn)
 		if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
 			// No record of this IP in Cymru, cannot continue
 			log.Debugf("IP (%s) not found in Cymru data", ip.String())
@@ -260,6 +310,9 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 }
 
 func (a *CymruAnnotator) Close() error {
+	if a.zdnsResolver != nil {
+		a.zdnsResolver.Close()
+	}
 	return nil
 }
 
