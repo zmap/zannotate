@@ -229,7 +229,7 @@ func (a *CymruAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 func (a *CymruAnnotator) Initialize() (err error) {
 	if a.Factory.mockDNSFunc != nil {
 		a.lookupFunc = a.Factory.mockDNSFunc
-
+		return nil
 	}
 	a.zdnsResolver, err = zdns.InitResolver(a.Factory.zdnsConfig)
 	if err != nil {

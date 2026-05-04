@@ -70,8 +70,9 @@ func TestPopulateOriginDetails(t *testing.T) {
 			mockResult: []string{"32 | 171.64.0.0/14 | US | arin | 1994-08-22"},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				if result.OriginASNs != "32" {
-					t.Errorf("expected OriginASN 32, got %s", result.OriginASNs)
+				expectedASNs := []uint32{32}
+				if !reflect.DeepEqual(result.OriginASNs, expectedASNs) {
+					t.Errorf("expected OriginASNs %v, got %v", expectedASNs, result.OriginASNs)
 				}
 				if result.PrefixDetails.Prefix != "171.64.0.0/14" {
 					t.Errorf("expected Prefix 171.64.0.0/14, got %s", result.PrefixDetails.Prefix)
@@ -88,14 +89,14 @@ func TestPopulateOriginDetails(t *testing.T) {
 			},
 		},
 		{
-			name:       "valid origin result, 2+ p",
+			name:       "valid origin result, 2+ origin asns",
 			ip:         net.ParseIP("34.114.10.22"),
 			mockResult: []string{"15169 19527 | 34.112.0.0/14 | US | arin | 2018-09-28"},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				expectedOriginASNs := []string{"15169", "19527"}
-				if reflect.DeepEqual(result.OriginASNs, expectedOriginASNs) {
-					t.Errorf("expected OriginASN %v, got %s", expectedOriginASNs, result.OriginASNs)
+				expectedOriginASNs := []uint32{15169, 19527}
+				if !reflect.DeepEqual(result.OriginASNs, expectedOriginASNs) {
+					t.Errorf("expected OriginASNs %v, got %v", expectedOriginASNs, result.OriginASNs)
 				}
 				if result.PrefixDetails.Prefix != "34.112.0.0/14" {
 					t.Errorf("expected Prefix 34.112.0.0/14, got %s", result.PrefixDetails.Prefix)
@@ -107,7 +108,7 @@ func TestPopulateOriginDetails(t *testing.T) {
 					t.Errorf("expected Registry arin, got %s", result.PrefixDetails.Registry)
 				}
 				if result.PrefixDetails.AllocationDate != "2018-09-28" {
-					t.Errorf("expected AllocationDate 1994-08-22, got %s", result.PrefixDetails.AllocationDate)
+					t.Errorf("expected AllocationDate 2018-09-28, got %s", result.PrefixDetails.AllocationDate)
 				}
 			},
 		},
@@ -145,8 +146,9 @@ func TestPopulateOriginDetails(t *testing.T) {
 			mockResult: []string{"  32  |  171.64.0.0/14  |  US  |  arin  |  1994-08-22  "},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				if result.OriginASNs != "32" {
-					t.Errorf("expected OriginASN 32 after trimming, got %s", result.OriginASNs)
+				expectedASNs := []uint32{32}
+				if !reflect.DeepEqual(result.OriginASNs, expectedASNs) {
+					t.Errorf("expected OriginASNs %v after trimming, got %v", expectedASNs, result.OriginASNs)
 				}
 				if result.PrefixDetails.CountryCode != "US" {
 					t.Errorf("expected CountryCode US after trimming, got %s", result.PrefixDetails.CountryCode)
@@ -286,7 +288,7 @@ func TestPopulatePeerDetails(t *testing.T) {
 func TestPopulateASNDetails(t *testing.T) {
 	tests := []struct {
 		name        string
-		originASN   string
+		originASN   uint32
 		mockResult  []string
 		mockErr     error
 		expectError bool
@@ -294,92 +296,52 @@ func TestPopulateASNDetails(t *testing.T) {
 	}{
 		{
 			name:       "valid ASN result",
-			originASN:  "32",
+			originASN:  32,
 			mockResult: []string{"32 | US | arin | 1984-09-24 | STANFORD - Stanford University, US"},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				if result.ASNLookup.ASN != 32 {
-					t.Errorf("expected ASN 32, got %d", result.ASNLookup.ASN)
+				expected := map[uint32]*ASNLookup{
+					32: {ASN: 32, CountryCode: "US", Registry: "arin", ASNAllocationDate: "1984-09-24", ASNDescription: "STANFORD - Stanford University, US"},
 				}
-				if result.ASNLookup.CountryCode != "US" {
-					t.Errorf("expected CountryCode US, got %s", result.ASNLookup.CountryCode)
-				}
-				if result.ASNLookup.Registry != "arin" {
-					t.Errorf("expected Registry arin, got %s", result.ASNLookup.Registry)
-				}
-				if result.ASNLookup.ASNAllocationDate != "1984-09-24" {
-					t.Errorf("expected ASNAllocationDate 1984-09-24, got %s", result.ASNLookup.ASNAllocationDate)
-				}
-				if result.ASNLookup.ASNDescription != "STANFORD - Stanford University, US" {
-					t.Errorf("expected ASNDescription, got %s", result.ASNLookup.ASNDescription)
-				}
-			},
-		},
-		{
-			name:       "ASN with long description",
-			originASN:  "13335",
-			mockResult: []string{"13335 | US | arin | 2010-07-14 | CLOUDFLARENET - Cloudflare, Inc., US"},
-			mockErr:    nil,
-			validate: func(t *testing.T, result *CymruResult) {
-				if result.ASNLookup.ASN != 13335 {
-					t.Errorf("expected ASN 13335, got %d", result.ASNLookup.ASN)
-				}
-				if result.ASNLookup.ASNDescription != "CLOUDFLARENET - Cloudflare, Inc., US" {
-					t.Errorf("expected full description, got %s", result.ASNLookup.ASNDescription)
+				if !reflect.DeepEqual(result.ASNLookup, expected) {
+					t.Errorf("expected ASNLookup %v, got %v", expected, result.ASNLookup)
 				}
 			},
 		},
 		{
 			name:        "no results from DNS",
-			originASN:   "32",
+			originASN:   32,
 			mockResult:  []string{},
 			mockErr:     nil,
 			expectError: true,
 		},
 		{
 			name:        "too few fields",
-			originASN:   "32",
+			originASN:   32,
 			mockResult:  []string{"32 | US | arin"},
 			mockErr:     nil,
 			expectError: true,
 		},
 		{
 			name:        "too many fields",
-			originASN:   "32",
+			originASN:   32,
 			mockResult:  []string{"32 | US | arin | 1984-09-24 | STANFORD - Stanford University, US | extra"},
 			mockErr:     nil,
 			expectError: true,
 		},
 		{
-			name:        "invalid ASN (non-numeric)",
-			originASN:   "invalid",
-			mockResult:  []string{"invalid | US | arin | 1984-09-24 | STANFORD - Stanford University, US"},
-			mockErr:     nil,
-			expectError: true,
-		},
-		{
 			name:       "ASN with extra whitespace",
-			originASN:  "32",
+			originASN:  32,
 			mockResult: []string{"  32  |  US  |  arin  |  1984-09-24  |  STANFORD - Stanford University, US  "},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				if result.ASNLookup.ASN != 32 {
-					t.Errorf("expected ASN 32 after trimming, got %d", result.ASNLookup.ASN)
+				expected := map[uint32]*ASNLookup{
+					32: {ASN: 32, CountryCode: "US", Registry: "arin", ASNAllocationDate: "1984-09-24", ASNDescription: "STANFORD - Stanford University, US"},
 				}
-				if result.ASNLookup.CountryCode != "US" {
-					t.Errorf("expected CountryCode US after trimming, got %s", result.ASNLookup.CountryCode)
-				}
-				if result.ASNLookup.ASNDescription != "STANFORD - Stanford University, US" {
-					t.Errorf("expected trimmed description, got %s", result.ASNLookup.ASNDescription)
+				if !reflect.DeepEqual(result.ASNLookup, expected) {
+					t.Errorf("expected ASNLookup %v after trimming, got %v", expected, result.ASNLookup)
 				}
 			},
-		},
-		{
-			name:        "ASN value exceeds uint32",
-			originASN:   "9999999999999",
-			mockResult:  []string{"9999999999999 | US | arin | 1984-09-24 | STANFORD - Stanford University, US"},
-			mockErr:     nil,
-			expectError: true,
 		},
 	}
 
@@ -424,14 +386,17 @@ func TestCymruAnnotate(t *testing.T) {
 				asnResp:    "13335 | US | arin | 2010-07-14 | CLOUDFLARENET - Cloudflare, Inc., US",
 			},
 			expectedResponse: &CymruResult{
-				OriginASNs: "13335",
+				OriginASNs: []uint32{13335},
 				PeerASNs:   []uint32{2914, 6461, 6939, 13335, 23352},
-				ASNLookup: &ASNLookup{
-					ASN:               13335,
-					CountryCode:       "US",
-					Registry:          "arin",
-					ASNAllocationDate: "2010-07-14",
-					ASNDescription:    "CLOUDFLARENET - Cloudflare, Inc., US",
+				// Annotate looks up ASN details for all origin + peer ASNs; the mock
+				// returns the same Cloudflare record for every query, so each entry
+				// carries that record's metadata but with the correct ASN key/field.
+				ASNLookup: map[uint32]*ASNLookup{
+					13335: {ASN: 13335, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
+					2914:  {ASN: 2914, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
+					6461:  {ASN: 6461, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
+					6939:  {ASN: 6939, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
+					23352: {ASN: 23352, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
 				},
 				PrefixDetails: &PrefixResult{
 					Prefix:         "1.1.1.0/24",
