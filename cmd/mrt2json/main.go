@@ -153,8 +153,8 @@ func main() {
 	flags := flag.NewFlagSet("flags", flag.ExitOnError)
 	flags.StringVar(&conf.InputFilePath, "input-file", "", "path to MRT file")
 	flags.StringVar(&conf.OutputFilePath, "output-file", "-", "where should JSON output be saved")
-	flags.StringVar(&conf.LogFilePath, "log-file", "", "where should JSON output be saved")
-	flags.IntVar(&conf.Verbosity, "verbosity", 3, "where should JSON output be saved")
+	flags.StringVar(&conf.LogFilePath, "log-file", "", "where should logs be saved, defaults to stderr")
+	flags.IntVar(&conf.Verbosity, "verbosity", 3, "controls the verbosity of logs, 1 for fatal only, 2 for errors, 3 for warnings (default), 4 for info, and 5 for debug")
 
 	if len(os.Args) < 2 {
 		log.Fatalf("No command provided. Must choose raw or entries")
