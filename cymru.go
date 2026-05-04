@@ -333,11 +333,8 @@ func convertIPToDNSFormat(ip net.IP) string {
 	nibbles := make([]string, 0, ipLength*2) // IPv4: 4 bytes, IPv6: 16 bytes, each becomes 2 nibbles
 	for i := ipLength - 1; i >= 0; i-- {
 		// Extract low and high nibbles
-		nibbles = append(nibbles, fmt.Sprintf("%x", ip[i]&0x0f)) // low nibble
-		nibbles = append(nibbles, fmt.Sprintf("%x", ip[i]>>4))   // high nibble
+		nibbles = append(nibbles, strconv.FormatUint(uint64(ip[i]&0x0f), 16)) // low nibble
+		nibbles = append(nibbles, strconv.FormatUint(uint64(ip[i]>>4), 16))   // low nibble
 	}
 	return strings.Join(nibbles, ".")
 }
-
-// TODO allign error logging behavior, we're mixing WARN and ERR
-// Seeing issues on running larger numbers of IPs, dig into that

@@ -39,9 +39,9 @@ func TestConvertIPToDNSFormat(t *testing.T) {
 			expected: "209.71.67.171",
 		},
 		{
-			name:     "ipv6 cloudflare",
-			ip:       net.ParseIP("2001:4860:b002::68").To16(),
-			expected: "8.6.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.2.0.0.b.0.6.8.4.1.0.0.2",
+			name:     "ipv6",
+			ip:       net.ParseIP("2001:abcd:ef12:b002::68").To16(),
+			expected: "8.6.0.0.0.0.0.0.0.0.0.0.0.0.0.0.2.0.0.b.2.1.f.e.d.c.b.a.1.0.0.2",
 		},
 	}
 
