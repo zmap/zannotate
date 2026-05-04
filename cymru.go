@@ -19,7 +19,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"maps"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,25 +44,34 @@ type ASNLookup struct {
 
 // CymruResult stores the format for the result from the Cymru annotator
 type CymruResult struct {
-	OriginASNs    []uint32              `json:"origin_asns,omitempty"`
-	PeerASNs      []uint32              `json:"peer_asns,omitempty"`
-	ASNLookup     map[uint32]*ASNLookup `json:"asn_details,omitempty"` // both Peer and Origin ASN Details
-	PrefixDetails *PrefixResult         `json:"prefix_details,omitempty"`
+	OriginASNs    []uint32                 `json:"origin_asns,omitempty"`
+	PeerASNs      []uint32                 `json:"peer_asns,omitempty"`
+	ASNLookup     map[uint32]*ASNLookup    `json:"asn_details,omitempty"`    // both Peer and Origin ASN Details
+	PrefixDetails map[string]*PrefixResult `json:"prefix_details,omitempty"` // Prefix to details
 }
 
 type PrefixResult struct {
-	Prefix         string `json:"prefix,omitempty"`
-	CountryCode    string `json:"country_code,omitempty"`
-	Registry       string `json:"registry,omitempty"`
-	AllocationDate string `json:"allocation_date,omitempty"`
+	Prefix         string   `json:"prefix,omitempty"`
+	OriginASNs     []uint32 `json:"origin_asns,omitempty"`
+	PeerASNs       []uint32 `json:"peer_asns,omitempty"`
+	CountryCode    string   `json:"country_code,omitempty"`
+	Registry       string   `json:"registry,omitempty"`
+	AllocationDate string   `json:"allocation_date,omitempty"`
 }
 
 func (result *CymruResult) populateASNDetails(ctx context.Context, lookupFunc dnsTXTLookupFunc, originASN uint32) error {
 	const asnURL = "asn.cymru.com"
 	url := "AS" + strconv.Itoa(int(originASN)) + "." + asnURL
-	parts, err := result.commonLookup(ctx, url, lookupFunc)
+	resp, err := lookupFunc(ctx, url)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not lookup ASN %d: %w", originASN, err)
+	}
+	if len(resp) == 0 {
+		return errors.New("no results found")
+	}
+	parts := strings.Split(resp[0], "|")
+	for i, part := range parts {
+		parts[i] = strings.TrimSpace(part)
 	}
 	if len(parts) != 5 {
 		return fmt.Errorf("asn endpoint returned unexpected result: %s", parts)
@@ -69,61 +80,86 @@ func (result *CymruResult) populateASNDetails(ctx context.Context, lookupFunc dn
 		result.ASNLookup = make(map[uint32]*ASNLookup)
 	}
 	result.ASNLookup[originASN] = &ASNLookup{
+		ASN:               originASN,
 		CountryCode:       parts[1],
 		Registry:          parts[2],
 		ASNAllocationDate: parts[3],
 		ASNDescription:    parts[4],
 	}
-	result.ASNLookup[originASN].ASN = originASN
 	return nil
 }
 
 func (result *CymruResult) populatePeerDetails(ctx context.Context, lookupFunc dnsTXTLookupFunc, ip net.IP) error {
 	const peerURL = "peer.asn.cymru.com"
 	url := convertIPToDNSFormat(ip) + "." + peerURL
-	parts, err := result.commonLookup(ctx, url, lookupFunc)
+	resp, err := lookupFunc(ctx, url)
 	if err != nil {
 		return err
 	}
-	if len(parts) != 5 {
-		return fmt.Errorf("peer endpoint returned unexpected result: %s", parts)
+	if len(resp) == 0 {
+		return errors.New("no results found")
 	}
-	// PopulateOrigin will take care of most of the fields here, we're just interested in the peer ASNs
-	var peerStrs []string
-	for _, peer := range strings.Split(parts[0], " ") {
-		if len(peer) > 0 {
-			peerStrs = append(peerStrs, peer)
+	peerASNs := make(map[uint32]struct{})
+	for _, line := range resp {
+		// Cymru can return multiple lines, each line corresponding to a prefix with potentially different peers
+		parts := strings.Split(line, "|")
+		for i, part := range parts {
+			parts[i] = strings.TrimSpace(part)
 		}
-	}
-	result.PeerASNs = make([]uint32, 0, len(peerStrs))
-	for _, peerStr := range peerStrs {
-		peerStr = strings.TrimSpace(peerStr)
-		var cast uint64
-		cast, err = strconv.ParseUint(peerStr, 10, 32)
-		if err != nil {
-			return fmt.Errorf("peer endpoint returned peers (%s) that are invalid: %v", parts, err)
+		if len(parts) != 5 {
+			return fmt.Errorf("peer endpoint returned unexpected result: %s", parts)
 		}
-		result.PeerASNs = append(result.PeerASNs, uint32(cast))
+		prefix := strings.TrimSpace(parts[1])
+		// PopulateOrigin will take care of most of the fields here, we're just interested in the peer ASNs
+		prefixPeerASNs := make(map[uint32]struct{})
+		for _, peer := range strings.Split(parts[0], " ") {
+			if len(peer) == 0 {
+				continue
+			}
+			peer = strings.TrimSpace(peer)
+			var cast uint64
+			cast, err = strconv.ParseUint(peer, 10, 32)
+			if err != nil {
+				return fmt.Errorf("peer endpoint returned peers (%s) that are invalid: %v", parts, err)
+			}
+			prefixPeerASNs[uint32(cast)] = struct{}{}
+		}
+		if len(result.PrefixDetails) == 0 {
+			result.PrefixDetails = make(map[string]*PrefixResult)
+		}
+		details, ok := result.PrefixDetails[prefix]
+		if !ok {
+			details = &PrefixResult{
+				Prefix: prefix,
+				CountryCode: parts[2],
+				Registry: parts[3],
+				AllocationDate: parts[4],
+			}
+		}
+		details.PeerASNs = slices.Collect(maps.Keys(prefixPeerASNs))
+		result.PrefixDetails[prefix] = details
+		maps.Copy(peerASNs, prefixPeerASNs)
 	}
+	result.PeerASNs = slices.Collect(maps.Keys(peerASNs))
 	return nil
 }
 
-func (result *CymruResult) commonLookup(ctx context.Context, url string, lookupFunc dnsTXTLookupFunc) ([]string, error) {
-	resp, err := lookupFunc(ctx, url)
-	if err != nil {
-		return nil, err
-	}
-	// Ex: "46749 | 171.64.0.0/14 | US | arin | 1994-08-22"
-	// 2914 6461 6939 13335 23352 | 1.1.1.0/24 | AU | apnic | 2011-08-11
-	if len(resp) == 0 {
-		return nil, errors.New("no results found")
-	}
-	parts := strings.Split(resp[0], "|")
-	for i, part := range parts {
-		parts[i] = strings.TrimSpace(part)
-	}
-	return parts, nil
-}
+//func (result *CymruResult) commonLookup(ctx context.Context, url string, lookupFunc dnsTXTLookupFunc) ([]string, error) {
+//	resp, err := lookupFunc(ctx, url)
+//	if err != nil {
+//		return nil, err
+//	}
+//	// Ex: "46749 | 171.64.0.0/14 | US | arin | 1994-08-22"
+//	// 2914 6461 6939 13335 23352 | 1.1.1.0/24 | AU | apnic | 2011-08-11
+//	if len(resp) == 0 {
+//		return nil, errors.New("no results found")
+//	}
+//	parts := strings.Split(resp[0], "|")
+//	for i, part := range parts {
+//		parts[i] = strings.TrimSpace(part)
+//	}
+//	return parts, nil
+//}
 
 func (result *CymruResult) populateOriginDetails(ctx context.Context, lookupFunc dnsTXTLookupFunc, ip net.IP) error {
 	cymruOriginURL := "origin.asn.cymru.com"
@@ -132,30 +168,49 @@ func (result *CymruResult) populateOriginDetails(ctx context.Context, lookupFunc
 		cymruOriginURL = "origin6.asn.cymru.com"
 	}
 	url := convertIPToDNSFormat(ip) + "." + cymruOriginURL
-	parts, err := result.commonLookup(ctx, url, lookupFunc)
+	resp, err := lookupFunc(ctx, url)
 	if err != nil {
-		return err
+		return fmt.Errorf("lookup failed for %s: %w", url, err)
 	}
-	if len(parts) != 5 {
-		return fmt.Errorf("origin endpoint returned unexpected result: %s", parts)
+	if len(resp) == 0 {
+		return fmt.Errorf("lookup returned no results for %s", url)
 	}
-
-	result.PrefixDetails = &PrefixResult{
-		Prefix:         parts[1],
-		CountryCode:    parts[2],
-		Registry:       parts[3],
-		AllocationDate: parts[4],
+	if len(result.PrefixDetails) == 0 {
+		result.PrefixDetails = make(map[string]*PrefixResult)
 	}
-	asnsStr := strings.Split(parts[0], " ")
-	result.OriginASNs = make([]uint32, 0, len(asnsStr))
-	for _, originASN := range asnsStr {
-		asn := strings.TrimSpace(originASN)
-		asnInt, err := strconv.ParseUint(asn, 10, 32)
-		if err != nil {
-			return fmt.Errorf("origin ASN (%s) could not be parsed: %v", originASN, err)
+	originASNs := make(map[uint32]struct{})
+	for _, line := range resp {
+		prefixOriginASNs := make(map[uint32]struct{})
+		parts := strings.Split(line, "|")
+		for i, part := range parts {
+			parts[i] = strings.TrimSpace(part)
 		}
-		result.OriginASNs = append(result.OriginASNs, uint32(asnInt))
+		if len(parts) != 5 {
+			return fmt.Errorf("origin endpoint returned unexpected result: %s", parts)
+		}
+		prefixDetail, ok := result.PrefixDetails[parts[1]]
+		if !ok {
+			prefixDetail = &PrefixResult{
+				Prefix:         parts[1],
+				CountryCode:    parts[2],
+				Registry:       parts[3],
+				AllocationDate: parts[4],
+			}
+		}
+		asnsStr := strings.Split(parts[0], " ")
+		for _, originASN := range asnsStr {
+			asn := strings.TrimSpace(originASN)
+			asnInt, err := strconv.ParseUint(asn, 10, 32)
+			if err != nil {
+				return fmt.Errorf("origin ASN (%s) could not be parsed: %v", originASN, err)
+			}
+			prefixOriginASNs[uint32(asnInt)] = struct{}{}
+		}
+		prefixDetail.OriginASNs = slices.Collect(maps.Keys(prefixOriginASNs))
+		maps.Copy(originASNs, prefixOriginASNs)
+		result.PrefixDetails[parts[1]] = prefixDetail
 	}
+	result.OriginASNs = slices.Collect(maps.Keys(originASNs))
 	return nil
 }
 
@@ -216,7 +271,7 @@ func (a *CymruAnnotatorFactory) IsEnabled() bool {
 
 func (a *CymruAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "cymru", false, "enrich with Cymru's ASN and IP prefix data")
-	flags.IntVar(&a.Threads, "cymru-threads", 50, "how many threads to use for Cymru lookups")
+	flags.IntVar(&a.Threads, "cymru-threads", 40, "how many threads to use for Cymru lookups")
 	flags.IntVar(&a.timeoutSecs, "cymru-timeout", 5, "timeout for each Cymru annotation, in seconds")
 	flags.StringVar(&a.RawResolvers, "cymru-dns-servers", "", "list of DNS servers to use for Cymru TXT lookups, comma-separated IPs. If empty, uses system defaults")
 }
@@ -292,7 +347,12 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 		log.Warnf("no ASN found for ip %s in cymru origin lookup", ip.String())
 		return nil
 	}
+	hasASNLookedUp := make(map[uint32]struct{})
 	for _, asn := range append(result.OriginASNs, result.PeerASNs...) {
+		if _, ok := hasASNLookedUp[asn]; ok {
+			continue // already seen before
+		}
+		hasASNLookedUp[asn] = struct{}{}
 		err = result.populateASNDetails(ctx, a.lookupFunc, asn)
 		if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
 			// No record of this IP in Cymru, cannot continue

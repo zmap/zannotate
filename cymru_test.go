@@ -18,6 +18,7 @@ import (
 	"context"
 	"net"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -70,21 +71,18 @@ func TestPopulateOriginDetails(t *testing.T) {
 			mockResult: []string{"32 | 171.64.0.0/14 | US | arin | 1994-08-22"},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				expectedASNs := []uint32{32}
-				if !reflect.DeepEqual(result.OriginASNs, expectedASNs) {
-					t.Errorf("expected OriginASNs %v, got %v", expectedASNs, result.OriginASNs)
+				expected := &PrefixResult{
+					Prefix:         "171.64.0.0/14",
+					CountryCode:    "US",
+					Registry:       "arin",
+					AllocationDate: "1994-08-22",
+					OriginASNs:     []uint32{32},
 				}
-				if result.PrefixDetails.Prefix != "171.64.0.0/14" {
-					t.Errorf("expected Prefix 171.64.0.0/14, got %s", result.PrefixDetails.Prefix)
+				if !reflect.DeepEqual(result.OriginASNs, expected.OriginASNs) {
+					t.Errorf("expected OriginASNs %v, got %v", expected.OriginASNs, result.OriginASNs)
 				}
-				if result.PrefixDetails.CountryCode != "US" {
-					t.Errorf("expected CountryCode US, got %s", result.PrefixDetails.CountryCode)
-				}
-				if result.PrefixDetails.Registry != "arin" {
-					t.Errorf("expected Registry arin, got %s", result.PrefixDetails.Registry)
-				}
-				if result.PrefixDetails.AllocationDate != "1994-08-22" {
-					t.Errorf("expected AllocationDate 1994-08-22, got %s", result.PrefixDetails.AllocationDate)
+				if !reflect.DeepEqual(result.PrefixDetails["171.64.0.0/14"], expected) {
+					t.Errorf("expected PrefixDetails[171.64.0.0/14] %v, got %v", expected, result.PrefixDetails["171.64.0.0/14"])
 				}
 			},
 		},
@@ -94,21 +92,21 @@ func TestPopulateOriginDetails(t *testing.T) {
 			mockResult: []string{"15169 19527 | 34.112.0.0/14 | US | arin | 2018-09-28"},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				expectedOriginASNs := []uint32{15169, 19527}
-				if !reflect.DeepEqual(result.OriginASNs, expectedOriginASNs) {
-					t.Errorf("expected OriginASNs %v, got %v", expectedOriginASNs, result.OriginASNs)
+				slices.Sort(result.OriginASNs)
+				pd := result.PrefixDetails["34.112.0.0/14"]
+				slices.Sort(pd.OriginASNs)
+				expected := &PrefixResult{
+					Prefix:         "34.112.0.0/14",
+					CountryCode:    "US",
+					Registry:       "arin",
+					AllocationDate: "2018-09-28",
+					OriginASNs:     []uint32{15169, 19527},
 				}
-				if result.PrefixDetails.Prefix != "34.112.0.0/14" {
-					t.Errorf("expected Prefix 34.112.0.0/14, got %s", result.PrefixDetails.Prefix)
+				if !reflect.DeepEqual(result.OriginASNs, expected.OriginASNs) {
+					t.Errorf("expected OriginASNs %v, got %v", expected.OriginASNs, result.OriginASNs)
 				}
-				if result.PrefixDetails.CountryCode != "US" {
-					t.Errorf("expected CountryCode US, got %s", result.PrefixDetails.CountryCode)
-				}
-				if result.PrefixDetails.Registry != "arin" {
-					t.Errorf("expected Registry arin, got %s", result.PrefixDetails.Registry)
-				}
-				if result.PrefixDetails.AllocationDate != "2018-09-28" {
-					t.Errorf("expected AllocationDate 2018-09-28, got %s", result.PrefixDetails.AllocationDate)
+				if !reflect.DeepEqual(pd, expected) {
+					t.Errorf("expected PrefixDetails[34.112.0.0/14] %v, got %v", expected, pd)
 				}
 			},
 		},
@@ -150,8 +148,8 @@ func TestPopulateOriginDetails(t *testing.T) {
 				if !reflect.DeepEqual(result.OriginASNs, expectedASNs) {
 					t.Errorf("expected OriginASNs %v after trimming, got %v", expectedASNs, result.OriginASNs)
 				}
-				if result.PrefixDetails.CountryCode != "US" {
-					t.Errorf("expected CountryCode US after trimming, got %s", result.PrefixDetails.CountryCode)
+				if result.PrefixDetails["171.64.0.0/14"].CountryCode != "US" {
+					t.Errorf("expected CountryCode US after trimming, got %s", result.PrefixDetails["171.64.0.0/14"].CountryCode)
 				}
 			},
 		},
@@ -191,12 +189,18 @@ func TestPopulatePeerDetails(t *testing.T) {
 			mockResult: []string{"46749 | 171.64.0.0/14 | US | arin | 1994-08-22"},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				if len(result.PeerASNs) != 1 {
-					t.Errorf("expected 1 peer ASN, got %d", len(result.PeerASNs))
-					return
+				expected := &PrefixResult{
+					Prefix:         "171.64.0.0/14",
+					CountryCode:    "US",
+					Registry:       "arin",
+					AllocationDate: "1994-08-22",
+					PeerASNs:       []uint32{46749},
 				}
-				if result.PeerASNs[0] != 46749 {
-					t.Errorf("expected PeerASN 46749, got %d", result.PeerASNs[0])
+				if !reflect.DeepEqual(result.PeerASNs, expected.PeerASNs) {
+					t.Errorf("expected PeerASNs %v, got %v", expected.PeerASNs, result.PeerASNs)
+				}
+				if !reflect.DeepEqual(result.PrefixDetails["171.64.0.0/14"], expected) {
+					t.Errorf("expected PrefixDetails[171.64.0.0/14] %v, got %v", expected, result.PrefixDetails["171.64.0.0/14"])
 				}
 			},
 		},
@@ -206,15 +210,21 @@ func TestPopulatePeerDetails(t *testing.T) {
 			mockResult: []string{"2914 6461 6939 13335 23352 | 1.1.1.0/24 | AU | apnic | 2011-08-11"},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				if len(result.PeerASNs) != 5 {
-					t.Errorf("expected 5 peer ASNs, got %d", len(result.PeerASNs))
-					return
+				slices.Sort(result.PeerASNs)
+				pd := result.PrefixDetails["1.1.1.0/24"]
+				slices.Sort(pd.PeerASNs)
+				expected := &PrefixResult{
+					Prefix:         "1.1.1.0/24",
+					CountryCode:    "AU",
+					Registry:       "apnic",
+					AllocationDate: "2011-08-11",
+					PeerASNs:       []uint32{2914, 6461, 6939, 13335, 23352},
 				}
-				expected := []uint32{2914, 6461, 6939, 13335, 23352}
-				for i, exp := range expected {
-					if result.PeerASNs[i] != exp {
-						t.Errorf("peer ASN[%d]: expected %d, got %d", i, exp, result.PeerASNs[i])
-					}
+				if !reflect.DeepEqual(result.PeerASNs, expected.PeerASNs) {
+					t.Errorf("expected PeerASNs %v, got %v", expected.PeerASNs, result.PeerASNs)
+				}
+				if !reflect.DeepEqual(pd, expected) {
+					t.Errorf("expected PrefixDetails[1.1.1.0/24] %v, got %v", expected, pd)
 				}
 			},
 		},
@@ -245,15 +255,10 @@ func TestPopulatePeerDetails(t *testing.T) {
 			mockResult: []string{"  2914   6461   6939  |  1.1.1.0/24  |  AU  |  apnic  |  2011-08-11  "},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				if len(result.PeerASNs) != 3 {
-					t.Errorf("expected 3 peer ASNs after trimming, got %d", len(result.PeerASNs))
-					return
-				}
+				slices.Sort(result.PeerASNs)
 				expected := []uint32{2914, 6461, 6939}
-				for i, exp := range expected {
-					if result.PeerASNs[i] != exp {
-						t.Errorf("peer ASN[%d] after trimming: expected %d, got %d", i, exp, result.PeerASNs[i])
-					}
+				if !reflect.DeepEqual(result.PeerASNs, expected) {
+					t.Errorf("expected PeerASNs %v after trimming, got %v", expected, result.PeerASNs)
 				}
 			},
 		},
@@ -365,6 +370,18 @@ func TestPopulateASNDetails(t *testing.T) {
 	}
 }
 
+func normalizeCymruResult(r *CymruResult) {
+	if r == nil {
+		return
+	}
+	slices.Sort(r.OriginASNs)
+	slices.Sort(r.PeerASNs)
+	for _, pd := range r.PrefixDetails {
+		slices.Sort(pd.OriginASNs)
+		slices.Sort(pd.PeerASNs)
+	}
+}
+
 func TestCymruAnnotate(t *testing.T) {
 	type lookupResults struct {
 		originResp string
@@ -398,11 +415,15 @@ func TestCymruAnnotate(t *testing.T) {
 					6939:  {ASN: 6939, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
 					23352: {ASN: 23352, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
 				},
-				PrefixDetails: &PrefixResult{
-					Prefix:         "1.1.1.0/24",
-					CountryCode:    "AU",
-					Registry:       "apnic",
-					AllocationDate: "2011-08-11",
+				PrefixDetails: map[string]*PrefixResult{
+					"1.1.1.0/24": {
+						Prefix:         "1.1.1.0/24",
+						CountryCode:    "AU",
+						Registry:       "apnic",
+						AllocationDate: "2011-08-11",
+						OriginASNs:     []uint32{13335},
+						PeerASNs:       []uint32{2914, 6461, 6939, 13335, 23352},
+					},
 				},
 			},
 		},
@@ -436,9 +457,11 @@ func TestCymruAnnotate(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to initialize Cymru annotator: %v", err)
 			}
-			rawResult := annotator.Annotate(test.ip)
-			if !reflect.DeepEqual(rawResult, test.expectedResponse) {
-				t.Fatalf("unexpected result: got %v want %v", rawResult, test.expectedResponse)
+			actual := annotator.Annotate(test.ip).(*CymruResult)
+			normalizeCymruResult(actual)
+			normalizeCymruResult(test.expectedResponse)
+			if !reflect.DeepEqual(actual, test.expectedResponse) {
+				t.Fatalf("unexpected result: got %v want %v", actual, test.expectedResponse)
 			}
 		})
 	}
