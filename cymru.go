@@ -215,8 +215,8 @@ func (a *CymruAnnotatorFactory) IsEnabled() bool {
 }
 
 func (a *CymruAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
-	flags.BoolVar(&a.Enabled, "cymru", false, "enrich with Cymru's ASN and prefix data (https://www.team-cymru.com/IP-ASN-mapping.html)")
-	flags.IntVar(&a.Threads, "cymru-threads", 100, "how many threads to use for Cymru lookups")
+	flags.BoolVar(&a.Enabled, "cymru", false, "enrich with Cymru's ASN and IP prefix data")
+	flags.IntVar(&a.Threads, "cymru-threads", 50, "how many threads to use for Cymru lookups")
 	flags.IntVar(&a.timeoutSecs, "cymru-timeout", 5, "timeout for each Cymru annotation, in seconds")
 	flags.StringVar(&a.RawResolvers, "cymru-dns-servers", "", "list of DNS servers to use for Cymru TXT lookups, comma-separated IPs. If empty, uses system defaults")
 }
@@ -247,7 +247,7 @@ func (a *CymruAnnotator) zdnsTXTLookup(ctx context.Context, host string) ([]stri
 		return nil, &net.DNSError{IsNotFound: true, Name: host}
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to lookup host %s with status %s: %w", host, status, err)
 	}
 	var txts []string
 	for _, answer := range res.Answers {
