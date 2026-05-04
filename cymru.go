@@ -130,9 +130,9 @@ func (result *CymruResult) populatePeerDetails(ctx context.Context, lookupFunc d
 		details, ok := result.PrefixDetails[prefix]
 		if !ok {
 			details = &PrefixResult{
-				Prefix: prefix,
-				CountryCode: parts[2],
-				Registry: parts[3],
+				Prefix:         prefix,
+				CountryCode:    parts[2],
+				Registry:       parts[3],
 				AllocationDate: parts[4],
 			}
 		}
@@ -271,7 +271,7 @@ func (a *CymruAnnotatorFactory) IsEnabled() bool {
 
 func (a *CymruAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "cymru", false, "enrich with Cymru's ASN and IP prefix data")
-	flags.IntVar(&a.Threads, "cymru-threads", 40, "how many threads to use for Cymru lookups")
+	flags.IntVar(&a.Threads, "cymru-threads", 50, "how many threads to use for Cymru lookups")
 	flags.IntVar(&a.timeoutSecs, "cymru-timeout", 5, "timeout for each Cymru annotation, in seconds")
 	flags.StringVar(&a.RawResolvers, "cymru-dns-servers", "", "list of DNS servers to use for Cymru TXT lookups, comma-separated IPs. If empty, uses system defaults")
 }
@@ -328,10 +328,10 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 	var dnsErr *net.DNSError
 	if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
 		// No record of this IP in Cymru, cannot continue
-		log.Debugf("IP (%s) not found in Cymru data", ip.String())
+		log.Debugf("IP (%s) not found in cymru data", ip.String())
 		return nil
 	} else if err != nil {
-		log.Errorf("error fetching cymru origin details for ip %s: %v", ip.String(), err)
+		log.Debugf("error fetching cymru origin details for ip %s: %v", ip.String(), err)
 		return nil
 	}
 	err = result.populatePeerDetails(ctx, a.lookupFunc, ip)
@@ -340,11 +340,11 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 		log.Debugf("IP (%s) not found in Cymru data", ip.String())
 		return nil
 	} else if err != nil {
-		log.Errorf("error fetching cymru peer details for ip %s: %v", ip.String(), err)
+		log.Debugf("error fetching cymru peer details for ip %s: %v", ip.String(), err)
 		return nil
 	}
 	if len(result.OriginASNs) == 0 {
-		log.Warnf("no ASN found for ip %s in cymru origin lookup", ip.String())
+		log.Debugf("no ASN found for ip %s in cymru origin lookup", ip.String())
 		return nil
 	}
 	hasASNLookedUp := make(map[uint32]struct{})
@@ -359,7 +359,7 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 			log.Debugf("IP (%s) not found in Cymru data", ip.String())
 			return nil
 		} else if err != nil {
-			log.Errorf("error fetching cymru ASN details for ip %s: %v", ip.String(), err)
+			log.Debugf("error fetching cymru ASN details for ip %s: %v", ip.String(), err)
 		}
 	}
 	return result
