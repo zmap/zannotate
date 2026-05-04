@@ -18,7 +18,9 @@ import (
 	"bufio"
 	"encoding/csv"
 	"fmt"
+	"os/signal"
 	"slices"
+	"syscall"
 	"time"
 
 	"io"
@@ -262,55 +264,78 @@ func AnnotateWorker(conf *GlobalConf, a Annotator, inChan <-chan inProcessIP,
 	wg.Done()
 }
 
+// PerSecondUpdateWorker prints a per-second scan summary as well as a Scan Completed/Aborted msg at the end
+// It writes the updates to the file path provided, or stderr if the file path is empty or "-".
+// For every line of output received on outChan, it counts one IP annotated
 func PerSecondUpdateWorker(filePath string, outChan <-chan string, wg *sync.WaitGroup) {
+	const (
+		scanCompleteStatusMsg = "Scan Complete; "
+		scanAbortedStatusMsg = "Scan Aborted; "
+		perSecondStatusMsg = ""
+	)
 	log.Debug("PerSecondUpdateWorker started")
 	defer wg.Done()
 	f := os.Stderr
-	if filePath != "-" && filePath != "" {
+	userProvidedFilePath := filePath != "-" && filePath != ""
+	if userProvidedFilePath {
 		var err error
-		f, err = os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0666)
+		f, err = os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			log.Fatalf("unable to open per-second log file: %s", err.Error())
 		}
 		defer f.Close()
 	}
 	startTime := time.Now()
-	ticker := time.NewTicker(time.Second)
 	ipsAnnotated := 0
+	getLogMessage := func(scanStatus string) string {
+		timeSinceStart := time.Since(startTime)
+		return fmt.Sprintf("%02dh:%02dm:%02ds; %s%d ips annotated; %.02f ips/sec\n",
+			int(timeSinceStart.Hours()),
+			int(timeSinceStart.Minutes())%60,
+			int(timeSinceStart.Seconds())%60,
+			scanStatus, // empty string for per-second updates and Scan Complete/Aborted for the relevant circumstance
+			ipsAnnotated,
+			float64(ipsAnnotated)/timeSinceStart.Seconds())
+	}
+	monitorForInterrupt := func() {
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+		sigNum := <-sigs // SIGINT or SIGTERM received
+		_, err := f.WriteString(getLogMessage(scanAbortedStatusMsg))
+		if err != nil {
+			log.Fatalf("unable to write to log file: %v", err)
+		}
+		if userProvidedFilePath {
+			err = f.Sync() // User provided an actual file to log to, let's flush it to disk before exiting
+			if err != nil {
+				log.Fatalf("unable to write to log file: %v", err)
+			}
+		}
+		os.Exit(128 + int(sigNum.(syscall.Signal)))
+	}
+	go monitorForInterrupt()
+	// Now for the per-second, usual status update loop
+	ticker := time.NewTicker(time.Second)
 	for {
 		select {
 		case <-ticker.C:
 			// Print per-second output summary
-			timeSinceStart := time.Since(startTime)
-			s := fmt.Sprintf("%02dh:%02dm:%02ds; %d ips annotated; %.02f ips/sec\n",
-				int(timeSinceStart.Hours()),
-				int(timeSinceStart.Minutes())%60,
-				int(timeSinceStart.Seconds())%60,
-				ipsAnnotated,
-				float64(ipsAnnotated)/timeSinceStart.Seconds())
-			_, err := f.WriteString(s)
+			_, err := f.WriteString(getLogMessage(perSecondStatusMsg))
 			if err != nil {
 				log.Fatalf("unable to write to log file: %v", err)
 			}
 		case _, ok := <-outChan:
 			if !ok {
-				timeSinceStart := time.Since(startTime)
-				s := fmt.Sprintf("%02dh:%02dm:%02ds; Scan Complete; %d ips annotated; %.02f ips/sec\n",
-					int(timeSinceStart.Hours()),
-					int(timeSinceStart.Minutes())%60,
-					int(timeSinceStart.Seconds())%60,
-					ipsAnnotated,
-					float64(ipsAnnotated)/timeSinceStart.Seconds())
-				_, err := f.WriteString(s)
+				_, err := f.WriteString(getLogMessage(scanCompleteStatusMsg))
 				if err != nil {
 					log.Fatalf("unable to write to log file: %v", err)
 				}
 				return
 			}
+			// IP annotated on the outbound channel
 			ipsAnnotated++
 		}
 	}
-
 }
 
 func DoAnnotation(conf *GlobalConf) {
@@ -368,7 +393,7 @@ func DoAnnotation(conf *GlobalConf) {
 	encodedOut, updatesOut := Tee[string](pipedEncodedOut)
 	go AnnotateWrite(conf.OutputFilePath, encodedOut, &writeWG)
 	writeWG.Add(1)
-	go PerSecondUpdateWorker(conf.LogFilePath, updatesOut, &writeWG)
+	go PerSecondUpdateWorker(conf.StatusUpdatesFilePath, updatesOut, &writeWG)
 	writeWG.Add(1)
 	// all workers started. close out everything in a safe order
 	// inRaw: we don't need to wait on this because it'll close its own channel
