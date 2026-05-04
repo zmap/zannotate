@@ -325,3 +325,17 @@ IP Network:
   Type: ASSIGNED PORTABLE
 ...<further output truncated for brevity>
 ```
+## Cymru
+
+Cymru provides ASN and BGP peering info for IP addresses. You can use the `--cymru` flag to query Cymru for this information.
+Cymru has setup a DNS service to provide this information and by default ZAnnotate will use your system default DNS resolvers to query.
+If you find you're seeing timeouts using your local DNS resolver, you can specify custom resolvers with the `--cymru-dns-servers` flag.
+`--cymru-threads` and `--cymru-timeout` are also available to configure performance of Cymru annotations, defaults are set to get good performance while avoiding timeouts with most DNS resolvers.
+
+```shell
+printf "1.1.1.1" | ./zannotate --cymru --cymru-dns-servers=1.1.1.1,1.0.0.1
+```
+
+```text
+{"ip":"2606:4700:4700::1111","cymru":{"origin_asns":[13335],"peer_asns":[5511],"asn_details":{"13335":{"asn":13335,"country_code":"US","registry":"arin","asn_allocation_date":"2010-07-14","asn_description":"CLOUDFLARENET - Cloudflare, Inc., US"},"5511":{"asn":5511,"country_code":"FR","registry":"ripencc","asn_allocation_date":"1996-01-08","asn_description":"OPENTRANSIT, FR"}},"prefix_details":{"prefix":"2606:4700:4700::/48","country_code":"US","registry":"arin","allocation_date":"2011-11-01"}}}
+```
