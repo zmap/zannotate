@@ -144,23 +144,6 @@ func (result *CymruResult) populatePeerDetails(ctx context.Context, lookupFunc d
 	return nil
 }
 
-//func (result *CymruResult) commonLookup(ctx context.Context, url string, lookupFunc dnsTXTLookupFunc) ([]string, error) {
-//	resp, err := lookupFunc(ctx, url)
-//	if err != nil {
-//		return nil, err
-//	}
-//	// Ex: "46749 | 171.64.0.0/14 | US | arin | 1994-08-22"
-//	// 2914 6461 6939 13335 23352 | 1.1.1.0/24 | AU | apnic | 2011-08-11
-//	if len(resp) == 0 {
-//		return nil, errors.New("no results found")
-//	}
-//	parts := strings.Split(resp[0], "|")
-//	for i, part := range parts {
-//		parts[i] = strings.TrimSpace(part)
-//	}
-//	return parts, nil
-//}
-
 func (result *CymruResult) populateOriginDetails(ctx context.Context, lookupFunc dnsTXTLookupFunc, ip net.IP) error {
 	cymruOriginURL := "origin.asn.cymru.com"
 	if ip.To4() == nil {
