@@ -17,7 +17,9 @@ package zannotate
 import (
 	"bufio"
 	"encoding/csv"
+	"fmt"
 	"slices"
+	"time"
 
 	"io"
 	"net"
@@ -103,6 +105,22 @@ func csvToInProcess(record []string, headers []string, ipFieldName, annotationFi
 
 	retv.Out = outMap
 	return retv
+}
+
+func Tee[T any](in <-chan T) (<-chan T, <-chan T) {
+	out1 := make(chan T)
+	out2 := make(chan T)
+
+	go func() {
+		defer close(out1)
+		defer close(out2)
+		for val := range in {
+			out1 <- val
+			out2 <- val
+		}
+	}()
+
+	return out1, out2
 }
 
 // single worker that reads from file and queues raw lines
@@ -244,6 +262,57 @@ func AnnotateWorker(conf *GlobalConf, a Annotator, inChan <-chan inProcessIP,
 	wg.Done()
 }
 
+func PerSecondUpdateWorker(filePath string, outChan <-chan string, wg *sync.WaitGroup) {
+	log.Debug("PerSecondUpdateWorker started")
+	defer wg.Done()
+	f := os.Stderr
+	if filePath != "-" && filePath != "" {
+		var err error
+		f, err = os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil {
+			log.Fatalf("unable to open per-second log file: %s", err.Error())
+		}
+		defer f.Close()
+	}
+	startTime := time.Now()
+	ticker := time.NewTicker(time.Second)
+	ipsAnnotated := 0
+	for {
+		select {
+		case <-ticker.C:
+			// Print per-second output summary
+			timeSinceStart := time.Since(startTime)
+			s := fmt.Sprintf("%02dh:%02dm:%02ds; %d ips annotated; %.02f ips/sec\n",
+				int(timeSinceStart.Hours()),
+				int(timeSinceStart.Minutes())%60,
+				int(timeSinceStart.Seconds())%60,
+				ipsAnnotated,
+				float64(ipsAnnotated)/timeSinceStart.Seconds())
+			_, err := f.WriteString(s)
+			if err != nil {
+				log.Fatalf("unable to write to log file: %v", err)
+			}
+		case _, ok := <-outChan:
+			if !ok {
+				timeSinceStart := time.Since(startTime)
+				s := fmt.Sprintf("%02dh:%02dm:%02ds; Scan Complete; %d ips annotated; %.02f ips/sec\n",
+					int(timeSinceStart.Hours()),
+					int(timeSinceStart.Minutes())%60,
+					int(timeSinceStart.Seconds())%60,
+					ipsAnnotated,
+					float64(ipsAnnotated)/timeSinceStart.Seconds())
+				_, err := f.WriteString(s)
+				if err != nil {
+					log.Fatalf("unable to write to log file: %v", err)
+				}
+				return
+			}
+			ipsAnnotated++
+		}
+	}
+
+}
+
 func DoAnnotation(conf *GlobalConf) {
 	// let each enabled annotator do their global initialization
 	// before we ask them to generate threa Annotators
@@ -290,13 +359,16 @@ func DoAnnotation(conf *GlobalConf) {
 	}
 	// encode raw data
 	var encodeWG sync.WaitGroup
-	encodedOut := make(chan string)
+	pipedEncodedOut := make(chan string)
 	for i := 0; i < conf.OutputEncodeThreads; i++ {
-		go AnnotateOutputEncode(conf, lastChannel, encodedOut, &encodeWG, i)
+		go AnnotateOutputEncode(conf, lastChannel, pipedEncodedOut, &encodeWG, i)
 		encodeWG.Add(1)
 	}
 	var writeWG sync.WaitGroup
+	encodedOut, updatesOut := Tee[string](pipedEncodedOut)
 	go AnnotateWrite(conf.OutputFilePath, encodedOut, &writeWG)
+	writeWG.Add(1)
+	go PerSecondUpdateWorker(conf.LogFilePath, updatesOut, &writeWG)
 	writeWG.Add(1)
 	// all workers started. close out everything in a safe order
 	// inRaw: we don't need to wait on this because it'll close its own channel
@@ -311,7 +383,7 @@ func DoAnnotation(conf *GlobalConf) {
 	}
 	// wait for the encoders
 	encodeWG.Wait()
-	close(encodedOut)
+	close(pipedEncodedOut)
 	// wait on writing to file
 	writeWG.Wait()
 	//endTime := time.Now().Format(time.RFC3339)
