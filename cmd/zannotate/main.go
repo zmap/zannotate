@@ -30,11 +30,9 @@ func main() {
 
 	var conf zannotate.GlobalConf
 	flags := flag.NewFlagSet("flags", flag.ExitOnError)
-	flags.StringVar(&conf.InputFilePath, "input-file", "-", "ip addresses to read")
+	flags.StringVar(&conf.InputFilePath, "input-file", "-", "ip addresses to read, use '-' for std in")
 	flags.StringVar(&conf.InputFileType, "input-file-type", "ips", "ips, csv, json")
-	flags.StringVar(&conf.OutputFilePath, "output-file", "-", "where should JSON output be saved")
-	flags.StringVar(&conf.MetadataFilePath, "metadata-file", "",
-		"where should JSON metadata be saved")
+	flags.StringVar(&conf.OutputFilePath, "output-file", "-", "where should JSON output be saved, use '-' for stdout")
 	flags.StringVar(&conf.LogFilePath, "log-file", "", "where should JSON logs be saved")
 	flags.IntVar(&conf.Verbosity, "verbosity", 3, "log verbosity: 1 (lowest)--5 (highest)")
 	// json annotation configuration

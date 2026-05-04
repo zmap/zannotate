@@ -49,7 +49,6 @@ type GlobalConf struct {
 	InputFilePath             string
 	InputFileType             string
 	OutputFilePath            string
-	MetadataFilePath          string
 	LogFilePath               string
 	Verbosity                 int
 	Threads                   int
