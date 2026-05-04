@@ -125,7 +125,7 @@ func prepareUsageString(flags *flag.FlagSet) {
 		}
 	}
 	flags.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options] <-module [module-options]>...\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [global options] <-module [module-options]>...\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "At least one annotation module must be specified (e.g. -geoip2, -rdns, -routing).\n\n")
 		for _, g := range groups {
 			fmt.Fprintf(os.Stderr, "\n%s Options:\n", g.name)
