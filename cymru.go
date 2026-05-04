@@ -164,7 +164,6 @@ type CymruAnnotatorFactory struct {
 	RawResolvers string
 	zdnsConfig   *zdns.ResolverConfig
 	timeoutSecs  int
-	mockDNSFunc  dnsTXTLookupFunc // Used to write unit tests, mocks the DNS lookup fn
 }
 
 type CymruAnnotator struct {
@@ -184,9 +183,6 @@ func (a *CymruAnnotatorFactory) MakeAnnotator(i int) Annotator {
 }
 
 func (a *CymruAnnotatorFactory) Initialize(_ *GlobalConf) error {
-	if a.mockDNSFunc != nil {
-		return nil // test mode, skip resolver setup
-	}
 	a.zdnsConfig = zdns.NewResolverConfig()
 	if len(strings.TrimSpace(a.RawResolvers)) > 0 {
 		for _, resolver := range strings.Split(a.RawResolvers, ",") {
@@ -227,8 +223,8 @@ func (a *CymruAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 
 // Cymru Annotator (Per-Worker)
 func (a *CymruAnnotator) Initialize() (err error) {
-	if a.Factory.mockDNSFunc != nil {
-		a.lookupFunc = a.Factory.mockDNSFunc
+	if a.lookupFunc != nil {
+		// mock lookup func being used
 		return nil
 	}
 	a.zdnsResolver, err = zdns.InitResolver(a.Factory.zdnsConfig)

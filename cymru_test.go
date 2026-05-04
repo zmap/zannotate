@@ -424,12 +424,14 @@ func TestCymruAnnotate(t *testing.T) {
 				return nil, nil
 			}
 			var factory CymruAnnotatorFactory
-			factory.mockDNSFunc = lookupFunc
 			err := factory.Initialize(nil)
 			if err != nil {
 				t.Fatalf("failed to initialize Cymru annotator factory: %v", err)
 			}
 			annotator := factory.MakeAnnotator(0)
+			if cymruAnnotator, ok := annotator.(*CymruAnnotator); ok {
+				cymruAnnotator.lookupFunc = lookupFunc
+			}
 			err = annotator.Initialize()
 			if err != nil {
 				t.Fatalf("failed to initialize Cymru annotator: %v", err)
