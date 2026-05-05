@@ -236,11 +236,13 @@ func (a *IPInfoAnnotatorFactory) IsEnabled() bool {
 	return a.Enabled
 }
 
+func (a *IPInfoAnnotatorFactory) GroupName() string { return "IPInfo" }
+
 func (a *IPInfoAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "ipinfo", false, "annotate with IPInfo.io data using a local MaxMind DB file")
 	flags.StringVar(&a.DatabaseFilePath, "ipinfo-database", "", "path to MaxMind DB data file for IPInfo.io annotation")
 	// On a quick benchmark of 1M IPs using a local DB file on a M2 Macbook Air, 1 thread vs. 10 threads were about the same speed, annotating about 212k IPs/second.
-	flags.IntVar(&a.Threads, "ipinfo-threads", 1, "how many ipinfo annotator threads")
+	flags.IntVar(&a.Threads, "ipinfo-threads", 1, "how many annotator threads")
 }
 
 // IPInfo Annotator (Per-Worker)

@@ -39,13 +39,15 @@ type RoutingAnnotator struct {
 }
 
 // Routing Annotator Factory (Global)
+func (a *RoutingAnnotatorFactory) GroupName() string { return "Routing/BGP" }
+
 func (a *RoutingAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "routing", false, "annotate with origin AS lookup")
 	flags.StringVar(&a.RoutingTablePath, "routing-mrt-file", "",
 		"path to MRT TABLE_DUMPv2 file")
 	flags.StringVar(&a.ASNamesPath, "routing-as-names", "", "path to as names file")
 	flags.IntVar(&a.Threads, "routing-threads", 5,
-		"how many routing processing threads to use")
+		"how many processing threads to use")
 }
 
 func (a *RoutingAnnotatorFactory) IsEnabled() bool {
