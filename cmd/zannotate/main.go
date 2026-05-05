@@ -103,7 +103,7 @@ func prepareUsageString(flags *flag.FlagSet) {
 		flags.VisitAll(func(f *flag.Flag) { seen[f.Name] = true })
 		return seen
 	}
-	groups := make([]flagGroup, 0, 1 + len(zannotate.Annotators)) // Global options + each annotator
+	groups := make([]flagGroup, 0, 1+len(zannotate.Annotators)) // Global options + each annotator
 	// Collect the global flags registered above.
 	globalFlags := snapshot()
 	globalNames := slices.Collect(maps.Keys(globalFlags))
