@@ -204,7 +204,10 @@ type CymruAnnotatorFactory struct {
 	zdnsConfig   *zdns.ResolverConfig
 	timeoutSecs  int
 	// We use our own cache here because ZDNS doens't cache TXT records internally
-	cache *lru.Cache[string, []string] // cache for TXT lookups, keyed by query URL
+	cache           *lru.Cache[string, []string] // cache for TXT lookups, keyed by query URL
+	queryOriginASN  bool
+	queryPeerASN    bool
+	queryASNDetails bool
 }
 
 type CymruAnnotator struct {
@@ -224,6 +227,14 @@ func (a *CymruAnnotatorFactory) MakeAnnotator(i int) Annotator {
 }
 
 func (a *CymruAnnotatorFactory) Initialize(_ *GlobalConf) error {
+	if noUserSpecifiedEnrichmentFlags := !a.queryOriginASN && !a.queryPeerASN && !a.queryASNDetails; noUserSpecifiedEnrichmentFlags {
+		a.queryOriginASN = true
+		a.queryPeerASN = true
+		a.queryASNDetails = true
+	}
+	if userOnlySpecifiedASNDetails := a.queryASNDetails && !a.queryOriginASN && !a.queryPeerASN; userOnlySpecifiedASNDetails {
+		return errors.New("cannot use --cymru-annotate-as-details without either --cymru-annotate-origin-as --cymru-annotate-peer-as as there'd be no ASs' to lookup")
+	}
 	a.zdnsConfig = zdns.NewResolverConfig()
 	// Setup a common cache for all resolvers to use
 	var err error
@@ -264,10 +275,13 @@ func (a *CymruAnnotatorFactory) IsEnabled() bool {
 }
 
 func (a *CymruAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
-	flags.BoolVar(&a.Enabled, "cymru", false, "enrich with Cymru's ASN and IP prefix data")
+	flags.BoolVar(&a.Enabled, "cymru", false, "enrich with Cymru's ASN and IP prefix data. Adds origin, peer, and ASN details by default, use the --cymru-annotate-... flags to specify a subset")
 	flags.IntVar(&a.Threads, "cymru-threads", 50, "how many threads to use for Cymru lookups")
 	flags.IntVar(&a.timeoutSecs, "cymru-timeout", 10, "timeout for each Cymru annotation, in seconds")
 	flags.StringVar(&a.RawResolvers, "cymru-dns-servers", "", "list of DNS servers to use for Cymru TXT lookups, comma-separated IPs. If empty, uses system defaults")
+	flags.BoolVar(&a.queryOriginASN, "cymru-annotate-origin-as", false, "enrich with Cymru's Origin AS data")
+	flags.BoolVar(&a.queryPeerASN, "cymru-annotate-peer-as", false, "enrich with Cymru's Peer AS data, the possible BGP peers of the origin AS")
+	flags.BoolVar(&a.queryASNDetails, "cymru-annotate-as-details", false, "enrich with ASN details for each peer/origin AS")
 }
 
 // Cymru Annotator (Per-Worker)
@@ -329,42 +343,48 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Duration(a.Factory.timeoutSecs)*time.Second)
 	defer cancelFn()
 	result := &CymruResult{}
-	err := result.populateOriginDetails(ctx, a.lookupFunc, ip)
 	var dnsErr *net.DNSError
-	if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
-		// No record of this IP in Cymru, cannot continue
-		log.Debugf("IP (%s) not found in cymru data", ip.String())
-		return nil
-	} else if err != nil {
-		log.Debugf("error fetching cymru origin details for ip %s: %v", ip.String(), err)
-		return nil
-	}
-	err = result.populatePeerDetails(ctx, a.lookupFunc, ip)
-	if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
-		// No record of this IP in Cymru, cannot continue
-		log.Debugf("IP (%s) not found in Cymru data", ip.String())
-		return nil
-	} else if err != nil {
-		log.Debugf("error fetching cymru peer details for ip %s: %v", ip.String(), err)
-		return nil
-	}
-	if len(result.OriginASNs) == 0 {
-		log.Debugf("no ASN found for ip %s in cymru origin lookup", ip.String())
-		return nil
-	}
-	hasASNLookedUp := make(map[uint32]struct{})
-	for _, asn := range append(result.OriginASNs, result.PeerASNs...) {
-		if _, ok := hasASNLookedUp[asn]; ok {
-			continue // already seen before
+	if a.Factory.queryOriginASN {
+		err := result.populateOriginDetails(ctx, a.lookupFunc, ip)
+		if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+			// No record of this IP in Cymru, cannot continue
+			log.Debugf("IP (%s) not found in cymru data", ip.String())
+			return nil
+		} else if err != nil {
+			log.Debugf("error fetching cymru origin details for ip %s: %v", ip.String(), err)
+			return nil
 		}
-		hasASNLookedUp[asn] = struct{}{}
-		err = result.populateASNDetails(ctx, a.lookupFunc, asn)
+	}
+	if a.Factory.queryPeerASN {
+		err := result.populatePeerDetails(ctx, a.lookupFunc, ip)
 		if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
 			// No record of this IP in Cymru, cannot continue
 			log.Debugf("IP (%s) not found in Cymru data", ip.String())
 			return nil
 		} else if err != nil {
-			log.Debugf("error fetching cymru ASN details for ip %s: %v", ip.String(), err)
+			log.Debugf("error fetching cymru peer details for ip %s: %v", ip.String(), err)
+			return nil
+		}
+	}
+	if len(result.PeerASNs) == 0 && len(result.OriginASNs) == 0 {
+		log.Debugf("no asns (peer and/or origin) found for ip %s in cymru origin lookup", ip.String())
+		return nil
+	}
+	if a.Factory.queryASNDetails {
+		hasASNLookedUp := make(map[uint32]struct{})
+		for _, asn := range append(result.OriginASNs, result.PeerASNs...) {
+			if _, ok := hasASNLookedUp[asn]; ok {
+				continue // already seen before
+			}
+			hasASNLookedUp[asn] = struct{}{}
+			err := result.populateASNDetails(ctx, a.lookupFunc, asn)
+			if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+				// No record of this IP in Cymru, cannot continue
+				log.Debugf("IP (%s) not found in Cymru data", ip.String())
+				return nil
+			} else if err != nil {
+				log.Debugf("error fetching cymru ASN details for ip %s: %v", ip.String(), err)
+			}
 		}
 	}
 	return result
