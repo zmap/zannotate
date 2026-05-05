@@ -51,8 +51,8 @@ github.com/oschwald/maxminddb-golang v1.13.1 h1:G3wwjdN9JmIK2o/ermkHM+98oX5fS+k5
 github.com/oschwald/maxminddb-golang v1.13.1/go.mod h1:K4pgV9N/GcK694KSTmVSDTODk4IsCNThNdTmnaBZ/F8=
 github.com/oschwald/maxminddb-golang/v2 v2.2.0 h1:/2khmIiNvFxgfwGxitper3XBJBs5qTCPQ/H1iR9MgBw=
 github.com/oschwald/maxminddb-golang/v2 v2.2.0/go.mod h1:n/ctYVTFYQypkn5uO1CZnTmj8jdQKIVh/LX7gSaIl0w=
-github.com/osrg/gobgp/v4 v4.4.0 h1:GA0oTZv4WfjXrhHI3Gm/fm9jAy4fVU7vdMvt0GOEqBE=
-github.com/osrg/gobgp/v4 v4.4.0/go.mod h1:pgu8waqTvZUYl4eQuPrKNOaVwhHv7Zt9YymuzCaX7f8=
+github.com/osrg/gobgp/v4 v4.5.0 h1:1jS4cMxUYSo36UfDyigLOLYEg6Oh+9I2mrnjjgAGCFk=
+github.com/osrg/gobgp/v4 v4.5.0/go.mod h1:pgu8waqTvZUYl4eQuPrKNOaVwhHv7Zt9YymuzCaX7f8=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=

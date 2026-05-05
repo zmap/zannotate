@@ -8,7 +8,7 @@ require (
 	github.com/openrdap/rdap v0.9.1
 	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/oschwald/maxminddb-golang/v2 v2.2.0
-	github.com/osrg/gobgp/v4 v4.4.0
+	github.com/osrg/gobgp/v4 v4.5.0
 	github.com/sirupsen/logrus v1.9.4
 	github.com/zmap/dns v1.1.70
 	github.com/zmap/go-iptree v0.0.0-20260427234317-6edabe974d8a
