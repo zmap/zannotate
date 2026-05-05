@@ -31,6 +31,7 @@ type Annotator interface {
 type AnnotatorFactory interface {
 	Initialize(c *GlobalConf) error
 	AddFlags(flags *flag.FlagSet)
+	GroupName() string
 	GetWorkers() int
 	IsEnabled() bool
 	MakeAnnotator(i int) Annotator
@@ -48,7 +49,6 @@ type GlobalConf struct {
 	InputFilePath             string
 	InputFileType             string
 	OutputFilePath            string
-	MetadataFilePath          string
 	LogFilePath               string
 	StatusUpdatesFilePath     string
 	Verbosity                 int

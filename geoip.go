@@ -92,6 +92,8 @@ type GeoIP2Annotator struct {
 }
 
 // GeoIP2 Annotator Factory (Global)
+func (a *GeoIP2AnnotatorFactory) GroupName() string { return "GeoIP2" }
+
 func (a *GeoIP2AnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "geoip2", false, "annotate with Maxmind GeoIP2/GeoLite data")
 	flags.StringVar(&a.Path, "geoip2-database", "",
@@ -101,7 +103,7 @@ func (a *GeoIP2AnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.StringVar(&a.Language, "geoip2-language", "en",
 		"what language geoip2 database is in")
 	flags.StringVar(&a.RawInclude, "geoip2-fields", "*",
-		"city, continent, country, location, postal, registered_country, subdivisions, traits")
+		"comma-separated list of output fields to include, use '*' for all: city, continent, country, location, postal, registered_country, subdivisions, traits")
 	flags.IntVar(&a.Threads, "geoip2-threads", 5, "how many geoIP processing threads to use")
 }
 

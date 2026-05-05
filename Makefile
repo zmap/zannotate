@@ -4,7 +4,7 @@ zannotate:
 	cd cmd/zannotate && \
 	go build -o zannotate && \
 	cd - && \
-	mv cmd/zannotate/zannotate .
+	cp cmd/zannotate/zannotate .
 
 clean:
 	rm -f zannotate

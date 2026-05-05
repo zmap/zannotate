@@ -15,13 +15,10 @@
 package zannotate
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"net"
 	"os"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/zmap/zannotate/zrouting"
 )
@@ -42,13 +39,15 @@ type RoutingAnnotator struct {
 }
 
 // Routing Annotator Factory (Global)
+func (a *RoutingAnnotatorFactory) GroupName() string { return "Routing/BGP" }
+
 func (a *RoutingAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "routing", false, "annotate with origin AS lookup")
 	flags.StringVar(&a.RoutingTablePath, "routing-mrt-file", "",
 		"path to MRT TABLE_DUMPv2 file")
 	flags.StringVar(&a.ASNamesPath, "routing-as-names", "", "path to as names file")
 	flags.IntVar(&a.Threads, "routing-threads", 5,
-		"how many routing processing threads to use")
+		"how many processing threads to use")
 }
 
 func (a *RoutingAnnotatorFactory) IsEnabled() bool {
@@ -59,25 +58,12 @@ func (a *RoutingAnnotatorFactory) GetWorkers() int {
 	return a.Threads
 }
 
-func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
-	if a.RoutingTablePath == "" {
-		return errors.New("no routing file (MRT TABLE_DUMPv2) provided")
-	}
-	log.Debug("will add routing using ", a.RoutingTablePath)
+func (a *RoutingAnnotatorFactory) Initialize(_ *GlobalConf) error {
 	// Routing Lookup Trees are thread-safe
 	a.rlt = new(zrouting.RoutingLookupTree)
 	f, err := os.Open(a.RoutingTablePath)
 	if err != nil {
 		return err
-	}
-	if a.ASNamesPath != "" {
-		f, err := os.Open(a.ASNamesPath)
-		if err != nil {
-			return err
-		}
-		if err = a.rlt.PopulateASnames(f); err != nil {
-			return fmt.Errorf("failed to populate AS names: %w", err)
-		}
 	}
 	if err = a.rlt.PopulateFromMRT(f); err != nil {
 		return fmt.Errorf("failed to populate routing table from MRT: %w", err)
