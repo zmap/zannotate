@@ -80,6 +80,8 @@ func MrtSubTypeToName(t uint16) string {
 	switch mrt.MRTSubTypeTableDumpv2(t) {
 	case mrt.RIB_IPV4_UNICAST:
 		return "rib_ipv4_unicast"
+	case mrt.RIB_IPV4_MULTICAST:
+		return "rib_ipv4_multicast"
 	case mrt.RIB_IPV6_UNICAST:
 		return "rib_ipv6_unicast"
 	case mrt.RIB_IPV6_MULTICAST:
@@ -123,7 +125,8 @@ func MrtRawIterate(raw io.Reader, cb mrtMessageCallback) error {
 		var msg *mrt.MRTMessage
 		msg, err = mrt.ParseBody(buf[0:n], h)
 		if err != nil {
-			return fmt.Errorf("failed to parse mrt body: %s", err)
+			logrus.Infof("failed to parse mrt body, will skip this mrt msg: %s", err)
+			continue
 		}
 		if err := cb(msg); err != nil {
 			return err
@@ -140,18 +143,26 @@ type From struct {
 }
 
 type Attributes struct {
-	Origin           string                          `json:"origin,omitempty"`
-	LocalPref        uint32                          `json:"local_pref,omitempty"`
-	Communities      []string                        `json:"communities,omitempty"`
-	NextHop          net.IP                          `json:"next_hop,omitempty"`
-	OriginatorId     net.IP                          `json:"originator_id,omitempty"`
-	ASPath           []uint32                        `json:"as_path,omitempty"`
-	AtomicAggregate  bool                            `json:"atomic_aggregate"`
-	Aggregator       *From                           `json:"aggregator,omitempty"`
-	MultiExitDesc    uint32                          `json:"multi_exit_desc,omitempty"`
-	MpReachNLRI      *bgp.PathAttributeMpReachNLRI   `json:"mp_reach_nlri,omitempty"`
-	MpUnreachNLRI    *bgp.PathAttributeMpUnreachNLRI `json:"mp_unreach_nlri,omitempty"`
-	LargeCommunities []string                        `json:"large_communities,omitempty"`
+	Origin                 string                          `json:"origin,omitempty"`
+	LocalPref              uint32                          `json:"local_pref,omitempty"`
+	Communities            []string                        `json:"communities,omitempty"`
+	NextHop                net.IP                          `json:"next_hop,omitempty"`
+	OriginatorId           net.IP                          `json:"originator_id,omitempty"`
+	ASPath                 []uint32                        `json:"as_path,omitempty"`
+	AtomicAggregate        bool                            `json:"atomic_aggregate"`
+	Aggregator             *From                           `json:"aggregator,omitempty"`
+	MultiExitDesc          uint32                          `json:"multi_exit_desc,omitempty"`
+	MpReachNLRI            *bgp.PathAttributeMpReachNLRI   `json:"mp_reach_nlri,omitempty"`
+	MpUnreachNLRI          *bgp.PathAttributeMpUnreachNLRI `json:"mp_unreach_nlri,omitempty"`
+	LargeCommunities       []string                        `json:"large_communities,omitempty"`
+	Aigp                   []uint64                        `json:"aigp,omitempty"`
+	ClusterList            []net.IP                        `json:"cluster_list,omitempty"`
+	ExtendedCommunities    []string                        `json:"extended_communities,omitempty"`
+	IP6ExtendedCommunities []string                        `json:"ip6_extended_communities,omitempty"`
+	Ls                     *bgp.PathAttributeLs            `json:"ls,omitempty"`
+	PmsiTunnel             *bgp.PathAttributePmsiTunnel    `json:"pmsi_tunnel,omitempty"`
+	PrefixSID              *bgp.PathAttributePrefixSID     `json:"prefix_sid,omitempty"`
+	TunnelEncap            *bgp.PathAttributeTunnelEncap   `json:"tunnel_encap,omitempty"`
 }
 
 type RIBEntry struct {
@@ -268,6 +279,65 @@ func MrtPathIterate(raw io.Reader, cb mrtPathCallback) error {
 						l = append(l, v.String())
 					}
 					out.Attributes.LargeCommunities = l
+				} else if v, ok := a.(*bgp.PathAttributeAigp); ok {
+					// RFC 7311
+					out.Attributes.Aigp = make([]uint64, 0, len(v.Values))
+					for _, tlv := range v.Values {
+						if m, ok := tlv.(*bgp.AigpTLVIgpMetric); ok {
+							out.Attributes.Aigp = append(out.Attributes.Aigp, m.Metric)
+						}
+					}
+				} else if v, ok := a.(*bgp.PathAttributeAs4Aggregator); ok {
+					// RFC 6793 Sec. 3 - The AS4_AGGREGATOR attribute has the same semantics
+					// and the same encoding as the AGGREGATOR attribute, except that it carries
+					// a four-octet AS number.
+					var f From
+					f.AS = v.Value.AS
+					f.Address = v.Value.Address.AsSlice()
+					out.Attributes.Aggregator = &f
+				} else if v, ok := a.(*bgp.PathAttributeAs4Path); ok {
+					// RFC 6793 Sec. 3 - The AS4_PATH attribute has the same semantics and
+					// the same encoding as the AS_PATH attribute, except that it is "optional transitive",
+					// and it carries four-octet AS numbers.
+					for _, param := range v.Value {
+						out.Attributes.ASPath = append(out.Attributes.ASPath, param.AS...)
+					}
+				} else if v, ok := a.(*bgp.PathAttributeClusterList); ok {
+					// RFC 4456 Sec. 8 - It is a sequence of CLUSTER_ID values representing the
+					// reflection path that the route has passed.
+					l := make([]net.IP, 0, len(v.Value))
+					for _, ip := range v.Value {
+						l = append(l, ip.AsSlice())
+					}
+					out.Attributes.ClusterList = l
+				} else if v, ok := a.(*bgp.PathAttributeExtendedCommunities); ok {
+					// RFC 4360
+					l := make([]string, 0, len(v.Value))
+					for _, ec := range v.Value {
+						l = append(l, ec.String())
+					}
+					out.Attributes.ExtendedCommunities = l
+				} else if v, ok := a.(*bgp.PathAttributeIP6ExtendedCommunities); ok {
+					// RFC 5701
+					l := make([]string, 0, len(v.Value))
+					for _, ec := range v.Value {
+						l = append(l, ec.String())
+					}
+					out.Attributes.IP6ExtendedCommunities = l
+				} else if v, ok := a.(*bgp.PathAttributeLs); ok {
+					// RFC 9552
+					out.Attributes.Ls = v
+				} else if v, ok := a.(*bgp.PathAttributePmsiTunnel); ok {
+					//RFC 6514 Section 5
+					out.Attributes.PmsiTunnel = v
+				} else if v, ok := a.(*bgp.PathAttributePrefixSID); ok {
+					// RFC 8669
+					out.Attributes.PrefixSID = v
+				} else if v, ok := a.(*bgp.PathAttributeTunnelEncap); ok {
+					// RFC 9012
+					out.Attributes.TunnelEncap = v
+				} else if _, ok := a.(*bgp.PathAttributeUnknown); ok {
+					continue // path Attribute not listed in GoBGP, nothing to do
 				} else {
 					logrus.Warnf("unsupported attribute type: %v", a.GetType())
 				}

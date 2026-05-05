@@ -15,13 +15,10 @@
 package zannotate
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"net"
 	"os"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/zmap/zannotate/zrouting"
 )
@@ -59,25 +56,12 @@ func (a *RoutingAnnotatorFactory) GetWorkers() int {
 	return a.Threads
 }
 
-func (a *RoutingAnnotatorFactory) Initialize(conf *GlobalConf) error {
-	if a.RoutingTablePath == "" {
-		return errors.New("no routing file (MRT TABLE_DUMPv2) provided")
-	}
-	log.Debug("will add routing using ", a.RoutingTablePath)
+func (a *RoutingAnnotatorFactory) Initialize(_ *GlobalConf) error {
 	// Routing Lookup Trees are thread-safe
 	a.rlt = new(zrouting.RoutingLookupTree)
 	f, err := os.Open(a.RoutingTablePath)
 	if err != nil {
 		return err
-	}
-	if a.ASNamesPath != "" {
-		f, err := os.Open(a.ASNamesPath)
-		if err != nil {
-			return err
-		}
-		if err = a.rlt.PopulateASnames(f); err != nil {
-			return fmt.Errorf("failed to populate AS names: %w", err)
-		}
 	}
 	if err = a.rlt.PopulateFromMRT(f); err != nil {
 		return fmt.Errorf("failed to populate routing table from MRT: %w", err)
