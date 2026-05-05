@@ -50,6 +50,7 @@ type GlobalConf struct {
 	OutputFilePath            string
 	MetadataFilePath          string
 	LogFilePath               string
+	StatusUpdatesFilePath     string
 	Verbosity                 int
 	Threads                   int
 	InputIPFieldName          string
