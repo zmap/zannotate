@@ -32,8 +32,9 @@ func main() {
 	flags := flag.NewFlagSet("flags", flag.ExitOnError)
 	flags.StringVar(&conf.InputFilePath, "input-file", "-", "ip addresses to read, use '-' for std in")
 	flags.StringVar(&conf.InputFileType, "input-file-type", "ips", "ips, csv, json")
-	flags.StringVar(&conf.OutputFilePath, "output-file", "-", "where should JSON output be saved, use '-' for stdout")
-	flags.StringVar(&conf.LogFilePath, "log-file", "", "where should JSON logs be saved")
+	flags.StringVar(&conf.OutputFilePath, "output-file", "-", "where should JSON output be saved, defaults to stdout")
+	flags.StringVar(&conf.LogFilePath, "log-file", "", "where should logs be saved, defaults to stderr")
+	flags.StringVar(&conf.StatusUpdatesFilePath, "status-file", "", "where should per-second status updates be saved, defaults to stderr")
 	flags.IntVar(&conf.Verbosity, "verbosity", 3, "log verbosity: 1 (lowest)--5 (highest)")
 	// json annotation configuration
 	flags.StringVar(&conf.InputIPFieldName, "input-ip-field", "ip", "key in JSON or column in CSV that contains IP address")
