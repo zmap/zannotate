@@ -109,7 +109,9 @@ func csvToInProcess(record []string, headers []string, ipFieldName, annotationFi
 	return retv
 }
 
-func Tee[T any](in <-chan T) (<-chan T, <-chan T) {
+// tee takes an input channel and returns two output channels that will both receive the same data as the input channel.
+// The output channels will be closed when the input channel is closed and all data has been processed.
+func tee[T any](in <-chan T) (<-chan T, <-chan T) {
 	out1 := make(chan T)
 	out2 := make(chan T)
 
@@ -331,6 +333,7 @@ func PerSecondUpdateWorker(filePath string, outChan <-chan string, wg *sync.Wait
 			}
 		case _, ok := <-outChan:
 			if !ok {
+				// output channel closed, scan complete
 				_, err := f.WriteString(getLogMessage(scanCompleteStatusMsg))
 				if err != nil {
 					log.Fatalf("unable to write to log file: %v", err)
@@ -395,7 +398,7 @@ func DoAnnotation(conf *GlobalConf) {
 		encodeWG.Add(1)
 	}
 	var writeWG sync.WaitGroup
-	encodedOut, updatesOut := Tee[string](pipedEncodedOut)
+	encodedOut, updatesOut := tee[string](pipedEncodedOut)
 	go AnnotateWrite(conf.OutputFilePath, encodedOut, &writeWG)
 	writeWG.Add(1)
 	go PerSecondUpdateWorker(conf.StatusUpdatesFilePath, updatesOut, &writeWG)
