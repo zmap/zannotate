@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/golang-lru/v2"
+	lru "github.com/hashicorp/golang-lru/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zmap/dns"
 	"github.com/zmap/zdns/v2/src/zdns"
@@ -204,7 +204,7 @@ type CymruAnnotatorFactory struct {
 	zdnsConfig   *zdns.ResolverConfig
 	timeoutSecs  int
 	// We use our own cache here because ZDNS doens't cache TXT records internally
-	cache        *lru.Cache[string, []string] // cache for TXT lookups, keyed by query URL
+	cache *lru.Cache[string, []string] // cache for TXT lookups, keyed by query URL
 }
 
 type CymruAnnotator struct {
