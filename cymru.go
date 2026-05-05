@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/golang-lru/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zmap/dns"
 	"github.com/zmap/zdns/v2/src/zdns"
@@ -202,6 +203,8 @@ type CymruAnnotatorFactory struct {
 	RawResolvers string
 	zdnsConfig   *zdns.ResolverConfig
 	timeoutSecs  int
+	// We use our own cache here because ZDNS doens't cache TXT records internally
+	cache        *lru.Cache[string, []string] // cache for TXT lookups, keyed by query URL
 }
 
 type CymruAnnotator struct {
@@ -222,6 +225,12 @@ func (a *CymruAnnotatorFactory) MakeAnnotator(i int) Annotator {
 
 func (a *CymruAnnotatorFactory) Initialize(_ *GlobalConf) error {
 	a.zdnsConfig = zdns.NewResolverConfig()
+	// Setup a common cache for all resolvers to use
+	var err error
+	a.cache, err = lru.New[string, []string](10000)
+	if err != nil {
+		return fmt.Errorf("could not create lru cache: %w", err)
+	}
 	if len(strings.TrimSpace(a.RawResolvers)) > 0 {
 		for _, resolver := range strings.Split(a.RawResolvers, ",") {
 			trimmed := strings.TrimSpace(resolver)
@@ -255,7 +264,7 @@ func (a *CymruAnnotatorFactory) IsEnabled() bool {
 func (a *CymruAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&a.Enabled, "cymru", false, "enrich with Cymru's ASN and IP prefix data")
 	flags.IntVar(&a.Threads, "cymru-threads", 50, "how many threads to use for Cymru lookups")
-	flags.IntVar(&a.timeoutSecs, "cymru-timeout", 5, "timeout for each Cymru annotation, in seconds")
+	flags.IntVar(&a.timeoutSecs, "cymru-timeout", 10, "timeout for each Cymru annotation, in seconds")
 	flags.StringVar(&a.RawResolvers, "cymru-dns-servers", "", "list of DNS servers to use for Cymru TXT lookups, comma-separated IPs. If empty, uses system defaults")
 }
 
@@ -274,6 +283,14 @@ func (a *CymruAnnotator) Initialize() (err error) {
 }
 
 func (a *CymruAnnotator) zdnsTXTLookup(ctx context.Context, host string) ([]string, error) {
+	// First, check cache
+	// We use a cache here since the internal cache in zdns doesn't cache TXT records
+	txts, ok := a.Factory.cache.Get(host)
+	if ok {
+		// Cache hit
+		return txts, nil
+	}
+	// Cache Miss
 	q := zdns.Question{
 		Type:  dns.TypeTXT,
 		Class: dns.ClassINET,
@@ -287,11 +304,14 @@ func (a *CymruAnnotator) zdnsTXTLookup(ctx context.Context, host string) ([]stri
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup host %s with status %s: %w", host, status, err)
 	}
-	var txts []string
 	for _, answer := range res.Answers {
 		if castAns, ok := answer.(zdns.Answer); ok && castAns.Type == "TXT" {
 			txts = append(txts, castAns.Answer)
 		}
+	}
+	if len(txts) > 0 {
+		// Add to cache
+		a.Factory.cache.Add(host, txts)
 	}
 	return txts, nil
 }
