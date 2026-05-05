@@ -253,6 +253,8 @@ func (a *CymruAnnotatorFactory) GetWorkers() int {
 	return a.Threads
 }
 
+func (a *CymruAnnotatorFactory) GroupName() string { return "Cymru" }
+
 func (a *CymruAnnotatorFactory) Close() error {
 	return nil
 }
