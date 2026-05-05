@@ -14,56 +14,14 @@
 package zannotate
 
 import (
-	"bytes"
-	"compress/bzip2"
-	"io"
 	"net"
-	"os"
 	"reflect"
 	"testing"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/zmap/zannotate/zrouting"
 )
 
-const MrtTestFile = "./data-snapshots/mrt_dump.bz2"
-
-var tmpMrtFilePath string
-
-func TestMain(m *testing.M) {
-	// Read and decompress the bz2 file. We do this to save space in the git repo
-	compressed, err := os.ReadFile(MrtTestFile)
-	if err != nil {
-		log.Fatalf("failed to read compressed test data: %v", err)
-	}
-	decompressed, err := io.ReadAll(bzip2.NewReader(bytes.NewReader(compressed)))
-	if err != nil {
-		log.Fatalf("failed to decompress test data: %v", err)
-	}
-
-	// Write to a temp file (works on Ubuntu, Mac, and GH runners)
-	tmpFile, err := os.CreateTemp("", "mrt-*.bin")
-	if err != nil {
-		log.Fatalf("failed to create temp file: %v", err)
-	}
-	tmpMrtFilePath = tmpFile.Name()
-
-	if _, err := tmpFile.Write(decompressed); err != nil {
-		log.Fatalf("failed to write temp file: %v", err)
-	}
-	if err = tmpFile.Close(); err != nil {
-		log.Fatalf("failed to close temp file: %v", err)
-	}
-
-	// Run tests, then clean up
-	code := m.Run()
-	err = os.Remove(tmpMrtFilePath)
-	if err != nil {
-		log.Errorf("failed to remove temp file (%s): %v", tmpMrtFilePath, err)
-	}
-	os.Exit(code)
-}
+const MrtTestFile = "./data-snapshots/routing.mrt"
 
 func TestRoutingAnnotate(t *testing.T) {
 	tests := []struct {
@@ -77,7 +35,7 @@ func TestRoutingAnnotate(t *testing.T) {
 			expectedResponse: &zrouting.RoutingOutput{
 				Prefix: "1.1.1.0/24",
 				ASN:    13335,
-				Path:   []uint32{4826, 13335},
+				Path:   []uint32{852, 13335},
 				Origin: nil,
 				Data:   nil,
 			},
@@ -87,14 +45,14 @@ func TestRoutingAnnotate(t *testing.T) {
 			expectedResponse: &zrouting.RoutingOutput{
 				Prefix: "2001:4860::/32",
 				ASN:    15169,
-				Path:   []uint32{7594, 15169},
+				Path:   []uint32{7018, 15169},
 				Origin: nil,
 				Data:   nil,
 			},
 		},
 	}
 	var factory RoutingAnnotatorFactory
-	factory.RoutingTablePath = tmpMrtFilePath
+	factory.RoutingTablePath = MrtTestFile
 	err := factory.Initialize(nil)
 	if err != nil {
 		t.Fatalf("failed to initialize Routing annotator factory: %v", err)
