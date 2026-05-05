@@ -103,8 +103,8 @@ func (a *GeoIP2AnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	flags.StringVar(&a.Language, "geoip2-language", "en",
 		"what language geoip2 database is in")
 	flags.StringVar(&a.RawInclude, "geoip2-fields", "*",
-		"city, continent, country, location, postal, registered_country, subdivisions, traits")
-	flags.IntVar(&a.Threads, "geoip2-threads", 5, "how many geoIP processing threads to use")
+		"comma-separated list of geoip annotations, '*' for all: city, continent, country, location, postal, registered_country, subdivisions, traits")
+	flags.IntVar(&a.Threads, "geoip2-threads", 5, "how many processing threads to use")
 }
 
 func (a *GeoIP2AnnotatorFactory) IsEnabled() bool {

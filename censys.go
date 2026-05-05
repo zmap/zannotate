@@ -59,7 +59,7 @@ func (a *CensysAnnotatorFactory) IsEnabled() bool {
 func (a *CensysAnnotatorFactory) GroupName() string { return "Censys" }
 
 func (a *CensysAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
-	flags.BoolVar(&a.Enabled, "censys", false, "censys internet intelligence")
+	flags.BoolVar(&a.Enabled, "censys", false, "annotate with censys internet intelligence")
 	flags.StringVar(&a.personalToken, "censys-pat", "", "censys API personal access token (PAT)")
 	flags.IntVar(&a.Threads, "censys-threads", 1, "how many enrichment threads to use. Note that free plan only allows 1 concurrent API request at a time")
 }

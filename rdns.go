@@ -101,9 +101,9 @@ func (a *RDNSAnnotatorFactory) IsEnabled() bool {
 
 func (a *RDNSAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 	// Reverse DNS Lookup
-	flags.BoolVar(&a.Enabled, "rdns", false, "reverse dns lookup")
+	flags.BoolVar(&a.Enabled, "rdns", false, "annotate with reverse dns lookup")
 	flags.StringVar(&a.RawResolvers, "rdns-dns-servers", "", "list of DNS servers to use for DNS lookups, comma-separated IP list. If empty, will use system defaults")
-	flags.IntVar(&a.Threads, "rdns-threads", 100, "how many reverse dns threads")
+	flags.IntVar(&a.Threads, "rdns-threads", 100, "how many annotation threads to use")
 	flags.IntVar(&a.timeoutSecs, "rdns-timeout", 2, "timeout for each rdns query, in seconds")
 }
 

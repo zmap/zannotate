@@ -77,7 +77,7 @@ func (a *SpurAnnotatorFactory) IsEnabled() bool {
 func (a *SpurAnnotatorFactory) GroupName() string { return "Spur" }
 
 func (a *SpurAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
-	flags.BoolVar(&a.Enabled, "spur", false, "enrich with Spur's threat intelligence data")
+	flags.BoolVar(&a.Enabled, "spur", false, "annotate with Spur's threat intelligence data")
 	flags.IntVar(&a.Threads, "spur-threads", 100, "how many threads to use for Spur lookups")
 	flags.IntVar(&a.timeoutSecs, "spur-timeout", 2, "timeout for each Spur query, in seconds")
 }

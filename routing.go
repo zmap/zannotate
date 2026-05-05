@@ -50,7 +50,7 @@ func (a *RoutingAnnotatorFactory) AddFlags(flags *flag.FlagSet) {
 		"path to MRT TABLE_DUMPv2 file")
 	flags.StringVar(&a.ASNamesPath, "routing-as-names", "", "path to as names file")
 	flags.IntVar(&a.Threads, "routing-threads", 5,
-		"how many routing processing threads to use")
+		"how many processing threads to use")
 }
 
 func (a *RoutingAnnotatorFactory) IsEnabled() bool {
