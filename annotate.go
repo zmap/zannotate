@@ -270,8 +270,8 @@ func AnnotateWorker(conf *GlobalConf, a Annotator, inChan <-chan inProcessIP,
 func PerSecondUpdateWorker(filePath string, outChan <-chan string, wg *sync.WaitGroup) {
 	const (
 		scanCompleteStatusMsg = "Scan Complete; "
-		scanAbortedStatusMsg = "Scan Aborted; "
-		perSecondStatusMsg = ""
+		scanAbortedStatusMsg  = "Scan Aborted; "
+		perSecondStatusMsg    = ""
 	)
 	log.Debug("PerSecondUpdateWorker started")
 	defer wg.Done()
@@ -283,7 +283,12 @@ func PerSecondUpdateWorker(filePath string, outChan <-chan string, wg *sync.Wait
 		if err != nil {
 			log.Fatalf("unable to open per-second log file: %s", err.Error())
 		}
-		defer f.Close()
+		defer func(f *os.File) {
+			err := f.Close()
+			if err != nil {
+				log.Fatalf("unable to close per-second log file: %s", err.Error())
+			}
+		}(f)
 	}
 	startTime := time.Now()
 	ipsAnnotated := 0
