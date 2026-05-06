@@ -19,6 +19,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os/signal"
+	"reflect"
 	"slices"
 	"syscall"
 	"time"
@@ -246,6 +247,19 @@ func AnnotateWrite(path string, out <-chan string, wg *sync.WaitGroup) {
 	log.Debug("write thread finished")
 }
 
+func isPtrNil(i any) bool {
+	if i == nil {
+		return true
+	}
+	val := reflect.ValueOf(i)
+	switch val.Kind() {
+	case reflect.Pointer, reflect.Interface, reflect.Slice, reflect.Map:
+		return val.IsNil()
+	default:
+		return false
+	}
+}
+
 func AnnotateWorker(conf *GlobalConf, a Annotator, inChan <-chan inProcessIP,
 	outChan chan<- inProcessIP, fieldName string, wg *sync.WaitGroup, i int) {
 	name := a.GetFieldName()
@@ -257,9 +271,18 @@ func AnnotateWorker(conf *GlobalConf, a Annotator, inChan <-chan inProcessIP,
 	for inProcess := range inChan {
 		if fieldName != "" && slices.Contains([]string{"json", "csv"}, conf.InputFileType) {
 			p := inProcess.Out[fieldName].(map[string]interface{})
-			p[name] = a.Annotate(inProcess.Ip)
+			res := a.Annotate(inProcess.Ip)
+			if isPtrNil(res) {
+				res = struct{}{} // Don't return null, breaks downstream JSON parsing
+			}
+			p[name] = res
+
 		} else {
-			inProcess.Out[name] = a.Annotate(inProcess.Ip)
+			res := a.Annotate(inProcess.Ip)
+			if isPtrNil(res) {
+				res = struct{}{} // Don't return null, breaks downstream JSON parsing
+			}
+			inProcess.Out[name] = res
 		}
 		outChan <- inProcess
 	}
