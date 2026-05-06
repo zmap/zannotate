@@ -15,6 +15,7 @@
 package zannotate
 
 import (
+	"cmp"
 	"context"
 	"net"
 	"reflect"
@@ -81,8 +82,8 @@ func TestPopulateOriginDetails(t *testing.T) {
 				if !reflect.DeepEqual(result.OriginASNs, expected.OriginASNs) {
 					t.Errorf("expected OriginASNs %v, got %v", expected.OriginASNs, result.OriginASNs)
 				}
-				if !reflect.DeepEqual(result.PrefixDetails["171.64.0.0/14"], expected) {
-					t.Errorf("expected PrefixDetails[171.64.0.0/14] %v, got %v", expected, result.PrefixDetails["171.64.0.0/14"])
+				if !reflect.DeepEqual(result.PrefixDetails[0], expected) {
+					t.Errorf("expected PrefixDetails[171.64.0.0/14] %v, got %v", expected, result.PrefixDetails[0])
 				}
 			},
 		},
@@ -93,7 +94,7 @@ func TestPopulateOriginDetails(t *testing.T) {
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
 				slices.Sort(result.OriginASNs)
-				pd := result.PrefixDetails["34.112.0.0/14"]
+				pd := result.PrefixDetails[0]
 				slices.Sort(pd.OriginASNs)
 				expected := &PrefixResult{
 					Prefix:         "34.112.0.0/14",
@@ -148,8 +149,8 @@ func TestPopulateOriginDetails(t *testing.T) {
 				if !reflect.DeepEqual(result.OriginASNs, expectedASNs) {
 					t.Errorf("expected OriginASNs %v after trimming, got %v", expectedASNs, result.OriginASNs)
 				}
-				if result.PrefixDetails["171.64.0.0/14"].CountryCode != "US" {
-					t.Errorf("expected CountryCode US after trimming, got %s", result.PrefixDetails["171.64.0.0/14"].CountryCode)
+				if result.PrefixDetails[0].CountryCode != "US" {
+					t.Errorf("expected CountryCode US after trimming, got %s", result.PrefixDetails[0].CountryCode)
 				}
 			},
 		},
@@ -157,7 +158,10 @@ func TestPopulateOriginDetails(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := &CymruResult{}
+			result := &CymruResult{
+				asnLookupMap:    make(map[uint32]struct{}),
+				prefixLookupMap: make(map[string]*PrefixResult),
+			}
 			lookupFunc := func(ctx context.Context, name string) ([]string, error) {
 				return tt.mockResult, tt.mockErr
 			}
@@ -199,8 +203,8 @@ func TestPopulatePeerDetails(t *testing.T) {
 				if !reflect.DeepEqual(result.PeerASNs, expected.PeerASNs) {
 					t.Errorf("expected PeerASNs %v, got %v", expected.PeerASNs, result.PeerASNs)
 				}
-				if !reflect.DeepEqual(result.PrefixDetails["171.64.0.0/14"], expected) {
-					t.Errorf("expected PrefixDetails[171.64.0.0/14] %v, got %v", expected, result.PrefixDetails["171.64.0.0/14"])
+				if !reflect.DeepEqual(result.PrefixDetails[0], expected) {
+					t.Errorf("expected PrefixDetails[171.64.0.0/14] %v, got %v", expected, result.PrefixDetails[0])
 				}
 			},
 		},
@@ -211,7 +215,7 @@ func TestPopulatePeerDetails(t *testing.T) {
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
 				slices.Sort(result.PeerASNs)
-				pd := result.PrefixDetails["1.1.1.0/24"]
+				pd := result.PrefixDetails[0]
 				slices.Sort(pd.PeerASNs)
 				expected := &PrefixResult{
 					Prefix:         "1.1.1.0/24",
@@ -273,7 +277,10 @@ func TestPopulatePeerDetails(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := &CymruResult{}
+			result := &CymruResult{
+				asnLookupMap:    make(map[uint32]struct{}),
+				prefixLookupMap: make(map[string]*PrefixResult),
+			}
 			lookupFunc := func(ctx context.Context, name string) ([]string, error) {
 				return tt.mockResult, tt.mockErr
 			}
@@ -305,8 +312,8 @@ func TestPopulateASNDetails(t *testing.T) {
 			mockResult: []string{"32 | US | arin | 1984-09-24 | STANFORD - Stanford University, US"},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				expected := map[uint32]*ASNLookup{
-					32: {ASN: 32, CountryCode: "US", Registry: "arin", ASNAllocationDate: "1984-09-24", ASNDescription: "STANFORD - Stanford University, US"},
+				expected := []*ASNLookup{
+					{ASN: 32, CountryCode: "US", Registry: "arin", ASNAllocationDate: "1984-09-24", ASNDescription: "STANFORD - Stanford University, US"},
 				}
 				if !reflect.DeepEqual(result.ASNLookup, expected) {
 					t.Errorf("expected ASNLookup %v, got %v", expected, result.ASNLookup)
@@ -340,8 +347,8 @@ func TestPopulateASNDetails(t *testing.T) {
 			mockResult: []string{"  32  |  US  |  arin  |  1984-09-24  |  STANFORD - Stanford University, US  "},
 			mockErr:    nil,
 			validate: func(t *testing.T, result *CymruResult) {
-				expected := map[uint32]*ASNLookup{
-					32: {ASN: 32, CountryCode: "US", Registry: "arin", ASNAllocationDate: "1984-09-24", ASNDescription: "STANFORD - Stanford University, US"},
+				expected := []*ASNLookup{
+					{ASN: 32, CountryCode: "US", Registry: "arin", ASNAllocationDate: "1984-09-24", ASNDescription: "STANFORD - Stanford University, US"},
 				}
 				if !reflect.DeepEqual(result.ASNLookup, expected) {
 					t.Errorf("expected ASNLookup %v after trimming, got %v", expected, result.ASNLookup)
@@ -352,7 +359,10 @@ func TestPopulateASNDetails(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := &CymruResult{}
+			result := &CymruResult{
+				asnLookupMap:    make(map[uint32]struct{}),
+				prefixLookupMap: make(map[string]*PrefixResult),
+			}
 			lookupFunc := func(ctx context.Context, name string) ([]string, error) {
 				return tt.mockResult, tt.mockErr
 			}
@@ -376,10 +386,18 @@ func normalizeCymruResult(r *CymruResult) {
 	}
 	slices.Sort(r.OriginASNs)
 	slices.Sort(r.PeerASNs)
+	slices.SortFunc(r.ASNLookup, func(i, j *ASNLookup) int {
+		return cmp.Compare(i.ASN, j.ASN)
+	})
+	slices.SortFunc(r.PrefixDetails, func(i, j *PrefixResult) int {
+		return strings.Compare(i.Prefix, j.Prefix)
+	})
 	for _, pd := range r.PrefixDetails {
 		slices.Sort(pd.OriginASNs)
 		slices.Sort(pd.PeerASNs)
 	}
+	r.prefixLookupMap = nil
+	r.asnLookupMap = nil
 }
 
 func TestCymruAnnotate(t *testing.T) {
@@ -408,15 +426,15 @@ func TestCymruAnnotate(t *testing.T) {
 				// Annotate looks up ASN details for all origin + peer ASNs; the mock
 				// returns the same Cloudflare record for every query, so each entry
 				// carries that record's metadata but with the correct ASN key/field.
-				ASNLookup: map[uint32]*ASNLookup{
-					13335: {ASN: 13335, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
-					2914:  {ASN: 2914, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
-					6461:  {ASN: 6461, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
-					6939:  {ASN: 6939, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
-					23352: {ASN: 23352, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
+				ASNLookup: []*ASNLookup{
+					{ASN: 13335, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
+					{ASN: 2914, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
+					{ASN: 6461, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
+					{ASN: 6939, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
+					{ASN: 23352, CountryCode: "US", Registry: "arin", ASNAllocationDate: "2010-07-14", ASNDescription: "CLOUDFLARENET - Cloudflare, Inc., US"},
 				},
-				PrefixDetails: map[string]*PrefixResult{
-					"1.1.1.0/24": {
+				PrefixDetails: []*PrefixResult{
+					{
 						Prefix:         "1.1.1.0/24",
 						CountryCode:    "AU",
 						Registry:       "apnic",
