@@ -83,7 +83,6 @@ var censysAPIHostLookupURL = "https://api.platform.censys.io/v3/global/asset/hos
 // Annotate performs a Censys host lookup for the given IP address and returns the results.
 // If an error occurs or a lookup fails, it returns nil
 func (a *CensysAnnotator) Annotate(ip net.IP) interface{} {
-
 	req, err := http.NewRequest("GET", censysAPIHostLookupURL+ip.String(), nil)
 	if err != nil {
 		// If we can't even form a request, we'll fail to enrich anything. Erroring out.

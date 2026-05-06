@@ -6,6 +6,7 @@ with network metadata. Right now this includes:
 | CLI Flag      | Description                                                                       |   Needs API Key   | Needs Data Download |
 |---------------|-----------------------------------------------------------------------------------|:-----------------:|:-------------------:|
 | `--censys`    | Censys internet intelligence (live API)                                           |        Yes        |                     |
+| `--cymru`     | Cymru IP Origin/Peer ASN and ASN details                                          |                   |                     |
 | `--geoasn`    | MaxMind GeoIP ASN data                                                            |                   |         Yes         |
 | `--geoip2`    | MaxMind GeoIP2 city and geolocation data                                          |                   |         Yes         |
 | `--greynoise` | GreyNoise Psychic threat intelligence and CVE data                                | Yes (to download) |         Yes         |
@@ -17,6 +18,7 @@ with network metadata. Right now this includes:
 
 **Jump to module setup:**
 [Censys](#censys) &middot;
+[Cymru](#cymru) &middot;
 [GeoASN](#MaxMind-GeoLite-asn) &middot;
 [GeoIP](#maxmind-geoip-asn-and-city-formerly-geoip2) &middot;
 [GreyNoise](#greynoise-psychic) &middot;
@@ -196,6 +198,23 @@ Results truncated for brevity:
             "city":"Mountain View"}},
       "services":[{
          "port":53,"protocol":"DNS","transport_protocol":"udp","ip":"8.8.8.8","scan_time":"2026-04-10T02:55:53Z"}]}}
+```
+
+### Cymru
+
+Cymru provides ASN and BGP peering info for IP addresses. You can use the `--cymru` flag to query Cymru for this information.
+Cymru has setup a DNS service to provide this information and by default ZAnnotate will use your system default DNS resolvers to query.
+If you find you're seeing timeouts using your local DNS resolver, you can specify custom resolvers with the `--cymru-dns-servers` flag.
+`--cymru-threads` and `--cymru-timeout` are also available to configure performance of Cymru annotations, defaults are set to get good performance while avoiding timeouts with most DNS resolvers.
+By default, the Cymru annotator fetches the origin and peer ASs' as well as AS details on all ASNs. Should you desire a subset, the following flags are available:
+`--cymru-annotate-origin-as`, `--cymru-annotate-peer-as`, and `--cymru-annotate-as-details`
+
+```shell
+printf "1.1.1.1" | ./zannotate --cymru --cymru-dns-servers=1.1.1.1,1.0.0.1
+```
+
+```json
+{"ip":"207.243.195.103","cymru":{"origin_asns":[7018],"peer_asns":[6939,1299,2914,3257,6461,6762],"asn_details":{"7018":{"asn":7018,"country_code":"US","registry":"arin","asn_allocation_date":"1996-07-30","asn_description":"ATT-INTERNET4 - AT&T Enterprises, LLC, US"},"6939":{"asn":6939,"country_code":"US","registry":"arin","asn_allocation_date":"1996-06-28","asn_description":"HURRICANE - Hurricane Electric LLC, US"},"1299":{"asn":1299,"country_code":"SE","registry":"ripencc","asn_allocation_date":"1993-09-01","asn_description":"TWELVE99 Arelion, fka Telia Carrier, SE"},"2914":{"asn":2914,"country_code":"US","registry":"arin","asn_allocation_date":"1998-12-07","asn_description":"NTT-DATA-2914 - NTT America, Inc., US"},"3257":{"asn":3257,"country_code":"US","registry":"ripencc","asn_allocation_date":"1994-09-30","asn_description""GTT-BACKBONE GTT, US"},"6461":{"asn":6461,"country_code":"US","registry":"arin","asn_allocation_date":"1996-04-22","asn_description":"ZAYO-6461 - Zayo Bandwidth, US"},"6762":{"asn":6762,"country_code":"IT","registry":"ripencc","asn_allocation_date":"1996-09-12","asn_description":"SEABONE-NET TELECOM ITALIA SPARKLE S.p.A., IT"}},"prefix_details":{"207.242.0.0/15":{"prefix":"207.242.0.0/15","origin_asns":[7018],"peer_asns":[1299,2914,3257,6461,6762,6939],"country_code":"US","registry":"arin","allocation_date":"1996-11-01" }}}}
 ```
 
 ### GreyNoise Psychic
