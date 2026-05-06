@@ -42,6 +42,11 @@ echo "1.1.1.1" | zannotate --rdns --ipinfo --ipinfo-database=./data-snapshots/ip
 }
 ```
 
+The `--help` has more details on each annotator and it's available flags
+```shell
+zannotate --help
+```
+
 
 ## Installation
 
