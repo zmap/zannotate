@@ -253,7 +253,7 @@ func isPtrNil(i any) bool {
 	}
 	val := reflect.ValueOf(i)
 	switch val.Kind() {
-	case reflect.Ptr, reflect.Interface, reflect.Slice, reflect.Map:
+	case reflect.Pointer, reflect.Interface, reflect.Slice, reflect.Map:
 		return val.IsNil()
 	default:
 		return false
@@ -272,14 +272,14 @@ func AnnotateWorker(conf *GlobalConf, a Annotator, inChan <-chan inProcessIP,
 		if fieldName != "" && slices.Contains([]string{"json", "csv"}, conf.InputFileType) {
 			p := inProcess.Out[fieldName].(map[string]interface{})
 			res := a.Annotate(inProcess.Ip)
-			if isPtrNil(res){
+			if isPtrNil(res) {
 				res = struct{}{} // Don't return null, breaks downstream JSON parsing
 			}
 			p[name] = res
 
 		} else {
 			res := a.Annotate(inProcess.Ip)
-			if isPtrNil(res){
+			if isPtrNil(res) {
 				res = struct{}{} // Don't return null, breaks downstream JSON parsing
 			}
 			inProcess.Out[name] = res
