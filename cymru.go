@@ -354,10 +354,10 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 		if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
 			// No record of this IP in Cymru, cannot continue
 			log.Debugf("IP (%s) not found in cymru data", ip.String())
-			return nil
+			return CymruResult{}
 		} else if err != nil {
 			log.Debugf("error fetching cymru origin details for ip %s: %v", ip.String(), err)
-			return nil
+			return CymruResult{}
 		}
 	}
 	if a.Factory.queryPeerASN {
@@ -365,15 +365,15 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 		if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
 			// No record of this IP in Cymru, cannot continue
 			log.Debugf("IP (%s) not found in Cymru data", ip.String())
-			return nil
+			return CymruResult{}
 		} else if err != nil {
 			log.Debugf("error fetching cymru peer details for ip %s: %v", ip.String(), err)
-			return nil
+			return CymruResult{}
 		}
 	}
 	if len(result.PeerASNs) == 0 && len(result.OriginASNs) == 0 {
 		log.Debugf("no asns (peer and/or origin) found for ip %s in cymru origin lookup", ip.String())
-		return nil
+		return CymruResult{}
 	}
 	if a.Factory.queryASNDetails {
 		hasASNLookedUp := make(map[uint32]struct{})
@@ -386,9 +386,10 @@ func (a *CymruAnnotator) Annotate(ip net.IP) interface{} {
 			if err != nil && errors.As(err, &dnsErr) && dnsErr.IsNotFound {
 				// No record of this IP in Cymru, cannot continue
 				log.Debugf("IP (%s) not found in Cymru data", ip.String())
-				return nil
+				return CymruResult{}
 			} else if err != nil {
 				log.Debugf("error fetching cymru ASN details for ip %s: %v", ip.String(), err)
+				return CymruResult{}
 			}
 		}
 	}
