@@ -331,6 +331,8 @@ Cymru provides ASN and BGP peering info for IP addresses. You can use the `--cym
 Cymru has setup a DNS service to provide this information and by default ZAnnotate will use your system default DNS resolvers to query.
 If you find you're seeing timeouts using your local DNS resolver, you can specify custom resolvers with the `--cymru-dns-servers` flag.
 `--cymru-threads` and `--cymru-timeout` are also available to configure performance of Cymru annotations, defaults are set to get good performance while avoiding timeouts with most DNS resolvers.
+By default, the Cymru annotator fetches the origin and peer ASs' as well as AS details on all ASNs. Should you desire a subset, the following flags are available:
+`--cymru-annotate-origin-as`, `--cymru-annotate-peer-as`, and `--cymru-annotate-as-details`
 
 ```shell
 printf "1.1.1.1" | ./zannotate --cymru --cymru-dns-servers=1.1.1.1,1.0.0.1
