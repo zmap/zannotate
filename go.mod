@@ -7,7 +7,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/openrdap/rdap v0.9.1
 	github.com/oschwald/geoip2-golang v1.13.0
-	github.com/oschwald/maxminddb-golang/v2 v2.2.0
+	github.com/oschwald/maxminddb-golang/v2 v2.3.0
 	github.com/osrg/gobgp/v4 v4.5.0
 	github.com/sirupsen/logrus v1.9.4
 	github.com/zmap/dns v1.1.70
@@ -46,7 +46,7 @@ require (
 	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.44.0 // indirect
