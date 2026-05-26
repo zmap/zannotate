@@ -20,6 +20,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -103,39 +104,31 @@ func (a *CensysAnnotator) Annotate(ip net.IP) interface{} {
 			log.Debugf("failed to close response body: %v", err)
 		}
 	}(res.Body)
-	if res.StatusCode != http.StatusOK {
-		log.Debugf("failed to annotate ip %s with censys: %s", ip.String(), res.Status)
+	body, _ := io.ReadAll(res.Body)
+	if res.StatusCode >= 400 && res.StatusCode < 500 {
+		// From https://docs.censys.com/reference/get-started#step-6-handle-http-response-codes
+		// 4XX errors are not transient and so we'll abort and report to the user
+		log.Fatalf("censys api returned an http status '%s' with message: '%s'. "+
+			"Cannot continue to annotate, please check that you have sufficient API credits and your PAT is correct", res.Status, strings.TrimSpace(string(body)))
+
+	} else if res.StatusCode != http.StatusOK {
+		// Should be a transient error, log and move on
+		log.Debugf("censys api returned an http %s status with message: '%s'. Skipping Censys annotation for this IP: %s", res.Status, strings.TrimSpace(string(body)), ip.String())
 		return nil
 	}
-	body, _ := io.ReadAll(res.Body)
-	var result any
+	// We have a successful response, unmarshall it.
+	// Struct taken from v1.1 of Censys API docs
+	var result struct {
+		Result struct {
+			Resource any `json:"resource"`
+		} `json:"result"`
+	}
 	err = json.Unmarshal(body, &result)
 	if err != nil {
 		log.Debugf("failed to parse censys response for ip %s: %v", ip.String(), err)
 		return nil
 	}
-	// By default, Censys' result is wrapped in a result[resource[real_data]]. We'll unwrap that here
-	dropResultCast, ok := result.(map[string]interface{})
-	if !ok {
-		log.Debugf("failed to unwrap censys response for ip %s: %v", ip.String(), result)
-		return result
-	}
-	dropResult := dropResultCast["result"]
-	if dropResult == nil {
-		log.Debugf("failed to unwrap censys response for ip %s: %v", ip.String(), result)
-		return result
-	}
-	dropResourceCast, ok := dropResult.(map[string]interface{})
-	if !ok {
-		log.Debugf("failed to unwrap censys response for ip %s: %v", ip.String(), result)
-		return result
-	}
-	dropResource := dropResourceCast["resource"]
-	if dropResource == nil {
-		log.Debugf("failed to unwrap censys response for ip %s: %v", ip.String(), result)
-		return result
-	}
-	return dropResource
+	return result.Result.Resource
 }
 
 func (a *CensysAnnotator) Close() error {

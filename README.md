@@ -179,7 +179,8 @@ They offer a free tier that allows for a limited number of queries per month, wh
 
 > [!NOTE]
 > The free account (as of April 2026) allows a single concurrent request and 100 requests per month.
-> Once you've used all your credits, the `censys:` annotation will be empty for any following IPs until your credits refill the following month.
+> Once you've used all your credits, the Censys API will return an error upon further requests until your credits reset at the beginning of the next month or you purchase additional credits.
+> ZAnnotate will quit with an error if this occurs to prevent silent errors, so if you have a large dataset to annotate, be mindful of your credit usage and prioritize only annotating the IPs you have credits for.
 > With the free account only offering a single concurrent request, you'll want to leave `--censys-threads=1` unless you pay for a higher tier.
 
 1. Create an account at [Censys.io](https://censys.io) and get a Personal Access Token (PAT) from Personal Settings > Personal Access Tokens.
