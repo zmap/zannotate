@@ -24,6 +24,8 @@ github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs
 github.com/hashicorp/golang-lru/v2 v2.0.7/go.mod h1:QeFd9opnmA6QUJc5vARoKUSoFhyfM2/ZepoAG6RGpeM=
 github.com/jarcoal/httpmock v1.3.0 h1:2RJ8GP0IIaWwcC9Fp2BmVi8Kog3v2Hn7VXM3fTd+nuc=
 github.com/jarcoal/httpmock v1.3.0/go.mod h1:3yb8rc4BI7TCBhFY8ng0gjuLKJNquuDNiPaZjnENuYg=
+github.com/jellydator/ttlcache/v3 v3.4.0 h1:YS4P125qQS0tNhtL6aeYkheEaB/m8HCqdMMP4mnWdTY=
+github.com/jellydator/ttlcache/v3 v3.4.0/go.mod h1:Hw9EgjymziQD3yGsQdf1FqFdpp7YjFMd4Srg5EJlgD4=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
@@ -94,8 +96,8 @@ github.com/zmap/go-iptree v0.0.0-20260427234317-6edabe974d8a h1:/eGk4H48xsW4Abz2
 github.com/zmap/go-iptree v0.0.0-20260427234317-6edabe974d8a/go.mod h1:9vp0bxqozzQwcjBwenEXfKVq8+mYbwHkQ1NF9Ap0DMw=
 github.com/zmap/zcrypto v0.0.0-20260426170728-e95752a6dfc1 h1:317pTB0eIhECMeuvtUhAtdfr5sJHcjr/zkQRfq/XpAM=
 github.com/zmap/zcrypto v0.0.0-20260426170728-e95752a6dfc1/go.mod h1:VKm3JJ9YsOEfr3+SirfeEbTNRa+s/mEXTe83vHwD+HQ=
-github.com/zmap/zdns/v2 v2.0.5 h1:RNrKZWki/LzKIXiHcO3oJwVM0mXkwu5mNs5s3Phniy0=
-github.com/zmap/zdns/v2 v2.0.5/go.mod h1:Q0RdCE5MdkTUHm3CUscxke3hyba6fjV8kIuCS/yeiDo=
+github.com/zmap/zdns/v2 v2.1.1 h1:dmdMcx30ezFtQfVR3h54068hCFSRkjcUwjnKzukfd/c=
+github.com/zmap/zdns/v2 v2.1.1/go.mod h1:yz3c3lRWj7h4ayNkoxhawlFDOQ9g4we+yC9GcnNwqx4=
 github.com/zmap/zflags v1.4.0-beta.1.0.20251126025438-ec78c6d2f8e9 h1:BZgsVcIPYSVdXlYFL6Ma0iNLbB/fhlyj6DaGwmppfTw=
 github.com/zmap/zflags v1.4.0-beta.1.0.20251126025438-ec78c6d2f8e9/go.mod h1:FsOB4N5XTSZ80AvFx0VV16M9slzoROippViwuiGQv2g=
 github.com/zmap/zgrab2 v1.0.0 h1:jnNPza3ZCg/1WtjaSqW/FXg6GmLZSloXgmxqVsODqTI=
