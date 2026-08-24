@@ -51,10 +51,10 @@ github.com/oschwald/geoip2-golang v1.13.0 h1:Q44/Ldc703pasJeP5V9+aFSZFmBN7DKHbNs
 github.com/oschwald/geoip2-golang v1.13.0/go.mod h1:P9zG+54KPEFOliZ29i7SeYZ/GM6tfEL+rgSn03hYuUo=
 github.com/oschwald/maxminddb-golang v1.13.1 h1:G3wwjdN9JmIK2o/ermkHM+98oX5fS+k5MbwsmL4MRQE=
 github.com/oschwald/maxminddb-golang v1.13.1/go.mod h1:K4pgV9N/GcK694KSTmVSDTODk4IsCNThNdTmnaBZ/F8=
+github.com/osrg/gobgp/v4 v4.8.0 h1:CoprkOZ2nsH8aTHij6xWj18QOrsBwG9D00l1PGw7394=
+github.com/osrg/gobgp/v4 v4.8.0/go.mod h1:bJbFm7T2nRANggShfl3I9h0UpPCzu4uAY5J/6dTdRvs=
 github.com/oschwald/maxminddb-golang/v2 v2.5.0 h1:WvEHCE8HwFS5pKWhW8nvvRxNzczuRUOGBLn2L03VlEQ=
 github.com/oschwald/maxminddb-golang/v2 v2.5.0/go.mod h1:EBnvLGgY+aSckqcgyfB5LPDviqaWdMZPBDwu8c2jJbs=
-github.com/osrg/gobgp/v4 v4.6.0 h1:9ga/Pn3NUiM0Sv0K7YI+dy/uMYKyXOsu3dalXTmnX8I=
-github.com/osrg/gobgp/v4 v4.6.0/go.mod h1:j1GLEuE20jm2YAoGmaHGb3y9lGH/KBgCBT4Ss5RY/wQ=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
