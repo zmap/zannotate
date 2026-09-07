@@ -1,14 +1,14 @@
 module github.com/zmap/zannotate
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/json-iterator/go v1.1.12
-	github.com/openrdap/rdap v0.10.1
+	github.com/openrdap/rdap v0.10.2
 	github.com/oschwald/geoip2-golang v1.13.0
-	github.com/osrg/gobgp/v4 v4.8.0
 	github.com/oschwald/maxminddb-golang/v2 v2.5.0
+	github.com/osrg/gobgp/v4 v4.8.0
 	github.com/sirupsen/logrus v1.10.1
 	github.com/zmap/dns v1.1.70
 	github.com/zmap/go-iptree v0.0.0-20260427234317-6edabe974d8a
@@ -43,12 +43,12 @@ require (
 	github.com/zmap/zflags v1.4.0-beta.1.0.20251126025438-ec78c6d2f8e9 // indirect
 	github.com/zmap/zgrab2 v1.0.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
+	golang.org/x/crypto v0.56.0 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.48.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
